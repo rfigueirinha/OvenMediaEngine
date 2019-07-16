@@ -18,6 +18,7 @@
 #include <monitoring/monitoring_server.h>
 #include <web_console/web_console.h>
 #include <rtmp/rtmp_provider.h>
+#include <mpegts/mpegts_provider.h>
 #include <base/ovcrypto/ovcrypto.h>
 #include <base/ovlibrary/stack_trace.h>
 #include <base/ovlibrary/log_write.h>
@@ -192,6 +193,14 @@ int main(int argc, char *argv[])
 					providers.push_back(provider);
 				}
 
+				if(application_info.GetType() == cfg::ApplicationType::Live)
+				{
+					logti("Trying to create MpegTs Provider for application [%s/%s]...", host_name.CStr(), app_name.CStr());
+					auto provider = MpegTsProvider::Create(&application_info, router);
+					CHECK_FAIL(provider);
+					providers.push_back(provider);
+				}
+
 				if(application_info.GetWebConsole().IsParsed())
 				{
 					logti("Trying to initialize WebConsole for application [%s/%s]...", host_name.CStr(), app_name.CStr());
@@ -274,7 +283,10 @@ int main(int argc, char *argv[])
 //        }
 	}
 
-	ov::Daemon::SetEvent();
+	if (parse_option.start_service)
+    {
+        ov::Daemon::SetEvent();
+    }
 
 	while(true)
 	{

@@ -172,7 +172,6 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 		{
 			// Pattern 0x00 0x00 0x01
 			nal_pattern_size = 3;
-
 		}
 		else
 		{
@@ -180,7 +179,20 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 			continue;
 		}
 
-        fragment_count++;
+		int nal_unit_type = _pkt->data[current_index + nal_pattern_size] & 0x1f;
+
+		if ((nal_unit_type == 0x07) || (nal_unit_type == 0x08) || (nal_unit_type == 0x05) || (nal_unit_type == 0x01))
+		{
+			// SPS, PPS, IDR, Non-IDR
+		}
+		else
+		{
+			// nal_unit_type == 0x06 -> SEI
+			current_index++;
+			continue;
+		}
+
+		fragment_count++;
 
 		if (sps_start_index == -1)
 		{
@@ -222,7 +234,7 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 	{
         // NON-IDR
 		fragment_header->fragmentation_offset[0] = sps_start_index ;
-		fragment_header->fragmentation_length[0] = _pkt->size - (sps_start_index - 1);
+		fragment_header->fragmentation_length[0] = _pkt->size - (sps_start_index);
 	}
 
 	return std::move(fragment_header);

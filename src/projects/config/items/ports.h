@@ -30,6 +30,11 @@ namespace cfg
 			return _rtmp_provider_port;
 		}
 
+		const Port &GetMpegTsProviderPort() const
+		{
+			return _mpegts_provider_port;
+		}
+
 		const Port &GetRtmpPort() const
 		{
 			return _rtmp_port;
@@ -72,6 +77,9 @@ namespace cfg
 			// Providers
 			RegisterValue<Optional>("RTMPProvider", &_rtmp_provider_port);
 
+			// Providers
+			RegisterValue<Optional>("MpegTsProvider", &_mpegts_provider_port);
+
 			// Publishers
 			RegisterValue<Optional>("RTMP", &_rtmp_port);
 			RegisterValue<Optional>("HLS", &_hls_port);
@@ -86,6 +94,9 @@ namespace cfg
 
 		// Listen port for Providers
 		Port _rtmp_provider_port { "1935/tcp" };
+
+		// Listen port for Providers
+		Port _mpegts_provider_port { "1234/udp" };
 
 		// Listen port for Publishers
 		Port _rtmp_port { "1935/tcp" };

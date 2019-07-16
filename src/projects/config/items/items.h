@@ -30,6 +30,7 @@
 #include "publisher.h"
 #include "publishers.h"
 #include "rtmp_provider.h"
+#include "mpegts_provider.h"
 #include "rtmp_publisher.h"
 #include "server.h"
 #include "stream.h"

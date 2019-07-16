@@ -16,6 +16,7 @@ namespace cfg
 	{
 		Unknown,
 		Rtmp,
+		MpegTs,
 	};
 
 	struct Provider : public Item
