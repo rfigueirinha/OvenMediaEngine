@@ -28,6 +28,7 @@ protected:
 	AVCodecContext *_context;
 	AVCodecParserContext *_parser;
 	AVCodecParameters *_codec_par;
+	AVBufferRef *_hw_device_ctx;
 
 	bool _change_format = false;
 

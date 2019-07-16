@@ -10,6 +10,54 @@
 
 #define OV_LOG_TAG "TranscodeCodec"
 
+bool OvenCodecImplAvcodecDecAVC::Configure(std::shared_ptr<TranscodeContext> context)
+{
+	_transcode_context = context;
+
+	if (TranscodeContext::GetHwAccel())
+	{
+		_codec = avcodec_find_decoder_by_name(GetCodecName());
+	}
+
+	_codec= nullptr;
+
+    if(_codec == nullptr)
+	{
+		_codec = avcodec_find_decoder(GetCodecID());
+	}
+
+	if(_codec == nullptr)
+	{
+		logte("Codec not found");
+		return false;
+	}
+
+	// create codec context
+	_context = avcodec_alloc_context3(_codec);
+
+	if(_context == nullptr)
+	{
+		logte("Could not allocate video codec context");
+		return false;
+	}
+
+	if(avcodec_open2(_context, _codec, nullptr) < 0)
+	{
+		logte("Could not open codec");
+		return false;
+	}
+
+	_parser = av_parser_init(_codec->id);
+
+	if(!_parser)
+	{
+		logte("Parser not found");
+		return false;
+	}
+
+	return true;
+}
+
 std::unique_ptr<MediaFrame> OvenCodecImplAvcodecDecAVC::RecvBuffer(TranscodeResult *result)
 {
 	// Check the decoded frame is available

@@ -19,12 +19,19 @@ namespace cfg
 			return _encode_list;
 		}
 
+		const bool &GetHwAccel() const
+		{
+			return _hw_accel;
+		}
+
 	protected:
 		void MakeParseList() const override
 		{
 			RegisterValue<Optional>("Encode", &_encode_list);
+			RegisterValue<Optional>("HardwareAcceleration", &_hw_accel);
 		}
 
 		std::vector<Encode> _encode_list;
+		bool _hw_accel;
 	};
 }

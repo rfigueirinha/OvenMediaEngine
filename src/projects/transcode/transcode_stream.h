@@ -130,6 +130,8 @@ private:
 	// Send frame with output stream's information
 	void SendFrame(std::unique_ptr<MediaPacket> packet);
 
+	static void AvLogCallback(void* ptr, int level, const char* fmt, va_list vl);
+
 	// 통계 정보
 private:
 	uint32_t _stats_decoded_frame_count;

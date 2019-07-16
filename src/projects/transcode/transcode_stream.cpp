@@ -97,6 +97,14 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
 
 	_stream_list[_application_info->GetId()];
 
+	TranscodeContext::SetHwAccel(_application_info->GetHwAccel());
+
+	if (_application_info->GetHwAccel())
+    {
+        //av_log_set_callback(AvLogCallback);
+    }
+	av_log_set_level(AV_LOG_TRACE);
+
 	// Prepare decoders
 	for(auto &track : _stream_info_input->GetTracks())
 	{
@@ -259,6 +267,9 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
 	}
 
 	logtd("Started transcode stream thread.");
+
+    //av_log_set_callback(nullptr);
+    //av_log_set_level(AV_LOG_QUIET);
 }
 
 TranscodeStream::~TranscodeStream()
@@ -719,7 +730,6 @@ void TranscodeStream::CreateEncoders(std::shared_ptr<MediaTrack> media_track)
 			logti("stream_name(%s), track_id(%d)", stream_track.first.CStr(), iter.first);
 		}
 
-		// av_log_set_level(AV_LOG_DEBUG);
 		CreateEncoder(new_track, iter.second);
 	}
 }
@@ -807,4 +817,20 @@ uint8_t TranscodeStream::AddContext(common::MediaType media_type, std::shared_pt
 	_contexts[last_index] = context;
 
 	return last_index;
+}
+
+void TranscodeStream::AvLogCallback(void* ptr, int level, const char* format, va_list vargs)
+{
+    char message[1024] = {0, };
+
+    if (level > AV_LOG_VERBOSE)
+    {
+        return;
+    }
+
+	::vsnprintf(message, sizeof(message), format, vargs);
+    std::string str(message);
+    str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
+
+    logti(str.c_str());
 }

@@ -101,6 +101,11 @@ namespace cfg
 			return _publishers.GetThreadCount();
 		}
 
+		const bool GetHwAccel() const
+		{
+			return _encodes.GetHwAccel();
+		}
+
 	protected:
 		void MakeParseList() const override
 		{

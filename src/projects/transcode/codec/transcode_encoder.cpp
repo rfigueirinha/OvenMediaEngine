@@ -35,6 +35,9 @@ TranscodeEncoder::~TranscodeEncoder()
 	OV_SAFE_FUNC(_pkt, nullptr, av_packet_free, &);
 
 	OV_SAFE_FUNC(_codec_par, nullptr, avcodec_parameters_free, &);
+
+	OV_SAFE_FUNC(_hw_device_ctx, nullptr, av_buffer_unref, &);
+
 }
 
 std::unique_ptr<TranscodeEncoder> TranscodeEncoder::CreateEncoder(common::MediaCodecId codec_id, std::shared_ptr<TranscodeContext> transcode_context)

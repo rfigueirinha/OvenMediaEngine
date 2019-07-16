@@ -14,6 +14,8 @@
 
 #define OV_LOG_TAG "TranscodeContext"
 
+bool TranscodeContext::_hw_accel = false;
+
 TranscodeContext::TranscodeContext()
 {
 	SetTimeBase(1, 1000000);
@@ -134,3 +136,12 @@ common::MediaType TranscodeContext::GetMediaType() const
 	return _media_type;
 }
 
+void TranscodeContext::SetHwAccel(bool hw_accel)
+{
+	_hw_accel = hw_accel;
+}
+
+bool TranscodeContext::GetHwAccel()
+{
+	return _hw_accel;
+}

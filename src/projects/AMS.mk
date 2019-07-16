@@ -19,7 +19,7 @@ PROJECT_CXXFLAGS := \
 	-std=c++14
 
 PROJECT_LDFLAGS := \
-	-ldl -lz
+	-ldl -lz -lavutil
 
 include $(CLEAR_VARIABLES)
 include $(BUILD_SUB_AMS)

@@ -10,12 +10,30 @@
 
 #define OV_LOG_TAG "TranscodeCodec"
 
+extern "C" {
+#include <libavutil/hwcontext.h>
+}
+
+
 bool OvenCodecImplAvcodecEncAVC::Configure(std::shared_ptr<TranscodeContext> context)
 {
 	_transcode_context = context;
 
-	AVCodec *codec = avcodec_find_encoder(GetCodecID());
-	if(!codec)
+	bool hw_accel = true;
+	AVCodec *codec = nullptr;
+
+	if (TranscodeContext::GetHwAccel())
+	{
+        codec = avcodec_find_encoder_by_name(GetCodecName());
+	}
+
+    if(codec == nullptr)
+	{
+		codec = avcodec_find_encoder(GetCodecID());
+        hw_accel = false;
+	}
+
+	if(codec == nullptr)
 	{
 		logte("Codec not found");
 		return false;
@@ -28,6 +46,26 @@ bool OvenCodecImplAvcodecEncAVC::Configure(std::shared_ptr<TranscodeContext> con
 		return false;
 	}
 
+//    _context->width = 800;
+//    _context->height = 600;
+//    _context->pix_fmt = codec->pix_fmts[0]; // NV12
+//    _context->bit_rate = _transcode_context->GetBitrate();
+//    _context->bit_rate_tolerance = _context->bit_rate / 2;
+//    _context->time_base.den = _transcode_context->GetFrameRate();
+//    _context->time_base.num = 1;
+//    _context->framerate.den = 1;
+//    _context->framerate.num = _transcode_context->GetFrameRate();
+//    _context->gop_size = _transcode_context->GetFrameRate()*5;
+//    _context->max_b_frames = 0;
+
+//    av_opt_set(_context->priv_data, "preset", "medium", 0);
+//    av_opt_set(_context->priv_data, "look_ahead", "0", 0);
+
+//    av_opt_set(_context->priv_data, "preset", "veryfast", 0);
+//    av_opt_set(_context->priv_data, "avbr_accuracy", "1", 0);
+//    av_opt_set(_context->priv_data, "async_depth", "1", 0);
+//    av_opt_set(_context->priv_data, "profile", "main", 0);
+
     _context->bit_rate = _transcode_context->GetBitrate();
 	_context->rc_max_rate = _context->bit_rate;
 	_context->rc_buffer_size = static_cast<int>(_context->bit_rate * 2);
@@ -39,19 +77,43 @@ bool OvenCodecImplAvcodecEncAVC::Configure(std::shared_ptr<TranscodeContext> con
     _context->framerate = av_d2q(_transcode_context->GetFrameRate(), AV_TIME_BASE);
     _context->gop_size = _transcode_context->GetGOP();
     _context->max_b_frames = 0;
-	_context->pix_fmt = AV_PIX_FMT_YUV420P;
+	_context->pix_fmt = AV_PIX_FMT_NV12;
 	_context->width = _transcode_context->GetVideoWidth();
 	_context->height = _transcode_context->GetVideoHeight();
 	_context->thread_count = 4;
 
-    av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
-    av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
-    av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
 
-	// open codec
-	if(avcodec_open2(_context, codec, nullptr) < 0)
+
+    {
+        int ret = av_hwdevice_ctx_create(&_hw_device_ctx, AVHWDeviceType::AV_HWDEVICE_TYPE_QSV, "auto", nullptr, 0);
+        if ( ret < 0)
+        {
+            char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
+            av_strerror(ret, error_msg, sizeof(error_msg));
+
+            logte("Could not create hardware device, error(%d), reason(%s)", ret, error_msg);
+            hw_accel = false;
+        }
+        else
+        {
+            _context->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
+        }
+    }
+
+    if (hw_accel == false)
+    {
+        av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
+        av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
+        av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
+    }
+
+    int ret = avcodec_open2(_context, codec, nullptr);
+	if(ret < 0)
 	{
-		logte("Could not open codec");
+        char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
+        av_strerror(ret, error_msg, sizeof(error_msg));
+
+		logte("Could not open codec, error(%d), reason(%s)", ret, error_msg);
 		return false;
 	}
 
@@ -106,7 +168,7 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::RecvBuffer(TranscodeRes
 		const MediaFrame *frame = buffer.get();
 		OV_ASSERT2(frame != nullptr);
 
-		_frame->format = frame->GetFormat();
+		_frame->format = AV_PIX_FMT_NV12;
 		_frame->width = frame->GetWidth();
 		_frame->height = frame->GetHeight();
 		_frame->pts = frame->GetPts();
@@ -137,7 +199,12 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::RecvBuffer(TranscodeRes
 
 		if(ret < 0)
 		{
-			logte("Error sending a frame for encoding : %d", ret);
+            char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
+            av_strerror(ret, error_msg, sizeof(error_msg));
+
+            logte("Error sending a frame for encoding, error(%d), reason(%s)", ret, error_msg);
+
+			//logte("Error sending a frame for encoding : %d", ret);
 		}
 
 		av_frame_unref(_frame);
@@ -226,4 +293,17 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 	}
 
 	return std::move(fragment_header);
+}
+
+
+void OvenCodecImplAvcodecEncAVC::YUV420PtoNV12(unsigned char *Src, unsigned char* Dst,int Width,int Height)
+{
+    unsigned char* SrcU = Src + Width * Height;
+    unsigned char* SrcV = SrcU + Width * Height / 4 ;
+    unsigned char* DstU = Dst + Width * Height;
+    int i = 0;
+    for( i = 0 ; i < Width * Height / 4 ; i++ ){
+        *(DstU++) = *(SrcU++);
+        *(DstU++) = *(SrcV++);
+    }
 }

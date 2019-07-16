@@ -88,6 +88,9 @@ public:
 
 	common::MediaType GetMediaType() const;
 
+	static void SetHwAccel(bool hw_accel);
+	static bool GetHwAccel();
+
 private:
 	//--------------------------------------------------------------------
 	// Video transcoding options
@@ -117,5 +120,7 @@ private:
 
 	// Channel
 	common::AudioChannel _audio_channel;
+
+	static bool _hw_accel;
 };
 
