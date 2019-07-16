@@ -267,9 +267,6 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
 	}
 
 	logtd("Started transcode stream thread.");
-
-    //av_log_set_callback(nullptr);
-    //av_log_set_level(AV_LOG_QUIET);
 }
 
 TranscodeStream::~TranscodeStream()
@@ -730,6 +727,7 @@ void TranscodeStream::CreateEncoders(std::shared_ptr<MediaTrack> media_track)
 			logti("stream_name(%s), track_id(%d)", stream_track.first.CStr(), iter.first);
 		}
 
+		// av_log_set_level(AV_LOG_DEBUG);
 		CreateEncoder(new_track, iter.second);
 	}
 }
