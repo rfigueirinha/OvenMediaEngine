@@ -103,7 +103,7 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
     {
         //av_log_set_callback(AvLogCallback);
     }
-	av_log_set_level(AV_LOG_TRACE);
+	//av_log_set_level(AV_LOG_TRACE);
 
 	// Prepare decoders
 	for(auto &track : _stream_info_input->GetTracks())

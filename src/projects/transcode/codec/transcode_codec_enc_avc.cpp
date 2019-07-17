@@ -77,35 +77,40 @@ bool OvenCodecImplAvcodecEncAVC::Configure(std::shared_ptr<TranscodeContext> con
     _context->framerate = av_d2q(_transcode_context->GetFrameRate(), AV_TIME_BASE);
     _context->gop_size = _transcode_context->GetGOP();
     _context->max_b_frames = 0;
-	_context->pix_fmt = AV_PIX_FMT_NV12;
+	_context->pix_fmt = AV_PIX_FMT_YUV420P;
 	_context->width = _transcode_context->GetVideoWidth();
 	_context->height = _transcode_context->GetVideoHeight();
 	_context->thread_count = 4;
 
+    if (hw_accel)
+	{
+		if (codec->name == "h264_nvenc")
+		{
+			av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
+			av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
+			av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
+		}
+		else if (codec->name == "h264_qsv")
+		{
+			int ret = av_hwdevice_ctx_create(&_hw_device_ctx, AVHWDeviceType::AV_HWDEVICE_TYPE_QSV, "auto", nullptr, 0);
+			if ( ret < 0)
+			{
+				char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
+				av_strerror(ret, error_msg, sizeof(error_msg));
 
+				logte("Could not create hardware device, error(%d), reason(%s)", ret, error_msg);
+			}
+			else
+			{
+				_context->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
+			}
 
-    {
-        int ret = av_hwdevice_ctx_create(&_hw_device_ctx, AVHWDeviceType::AV_HWDEVICE_TYPE_QSV, "auto", nullptr, 0);
-        if ( ret < 0)
-        {
-            char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
-            av_strerror(ret, error_msg, sizeof(error_msg));
+			av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
+			av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
+			av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
+		}
 
-            logte("Could not create hardware device, error(%d), reason(%s)", ret, error_msg);
-            hw_accel = false;
-        }
-        else
-        {
-            _context->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
-        }
-    }
-
-    if (hw_accel == false)
-    {
-        av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
-        av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
-        av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
-    }
+	}
 
     int ret = avcodec_open2(_context, codec, nullptr);
 	if(ret < 0)
@@ -168,7 +173,7 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::RecvBuffer(TranscodeRes
 		const MediaFrame *frame = buffer.get();
 		OV_ASSERT2(frame != nullptr);
 
-		_frame->format = AV_PIX_FMT_NV12;
+		_frame->format = frame->GetFormat();
 		_frame->width = frame->GetWidth();
 		_frame->height = frame->GetHeight();
 		_frame->pts = frame->GetPts();
@@ -239,7 +244,6 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 		{
 			// Pattern 0x00 0x00 0x01
 			nal_pattern_size = 3;
-
 		}
 		else
 		{
@@ -247,7 +251,20 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 			continue;
 		}
 
-        fragment_count++;
+		int nal_unit_type = _pkt->data[current_index + nal_pattern_size] & 0x1f;
+
+		if ((nal_unit_type == 0x07) || (nal_unit_type == 0x08) || (nal_unit_type == 0x05) || (nal_unit_type == 0x01))
+		{
+			// SPS, PPS, IDR, Non-IDR
+		}
+		else
+		{
+			// nal_unit_type == 0x06 -> SEI
+			current_index++;
+			continue;
+		}
+
+		fragment_count++;
 
 		if (sps_start_index == -1)
 		{
@@ -289,7 +306,7 @@ std::unique_ptr<FragmentationHeader> OvenCodecImplAvcodecEncAVC::MakeFragmentHea
 	{
         // NON-IDR
 		fragment_header->fragmentation_offset[0] = sps_start_index ;
-		fragment_header->fragmentation_length[0] = _pkt->size - (sps_start_index - 1);
+		fragment_header->fragmentation_length[0] = _pkt->size - (sps_start_index);
 	}
 
 	return std::move(fragment_header);

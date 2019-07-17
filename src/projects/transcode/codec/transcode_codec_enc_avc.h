@@ -10,6 +10,8 @@
 
 #include "transcode_encoder.h"
 
+#define NVENC_EN
+
 class OvenCodecImplAvcodecEncAVC : public TranscodeEncoder
 {
 public:
@@ -20,8 +22,17 @@ public:
 
 	const char* GetCodecName() const noexcept
 	{
+		std::string codec_name;
+#ifdef NVENC_EN
+		codec_name = "h264_nvenc";
+#endif
+#ifdef QSV_EN_
+		codec_name = "h264_qsv";
+#endif
+
         // TODO set priority of using hardware
-		return "h264_qsv";
+		return codec_name.c_str();
+
 	}
 
 	bool Configure(std::shared_ptr<TranscodeContext> context) override;
