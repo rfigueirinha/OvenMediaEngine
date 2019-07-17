@@ -101,7 +101,7 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
 
 	if (_application_info->GetHwAccel())
     {
-        //av_log_set_callback(AvLogCallback);
+        av_log_set_callback(AvLogCallback);
     }
 	//av_log_set_level(AV_LOG_TRACE);
 
