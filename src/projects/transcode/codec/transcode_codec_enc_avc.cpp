@@ -77,39 +77,38 @@ bool OvenCodecImplAvcodecEncAVC::Configure(std::shared_ptr<TranscodeContext> con
     _context->framerate = av_d2q(_transcode_context->GetFrameRate(), AV_TIME_BASE);
     _context->gop_size = _transcode_context->GetGOP();
     _context->max_b_frames = 0;
-	_context->pix_fmt = AV_PIX_FMT_YUV420P;
+	_context->pix_fmt = codec->pix_fmts[0];
 	_context->width = _transcode_context->GetVideoWidth();
 	_context->height = _transcode_context->GetVideoHeight();
 	_context->thread_count = 4;
 
     if (hw_accel)
 	{
-		if (codec->name == "h264_nvenc")
+#ifdef NVENC_EN
+		av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
+		av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
+		av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
+#endif
+
+#ifdef QSV_EN
+		av_opt_set(_context->priv_data, "preset", "veryfast", 0);
+		av_opt_set(_context->priv_data, "avbr_accuracy", "1", 0);
+		av_opt_set(_context->priv_data, "async_depth", "1", 0);
+		av_opt_set(_context->priv_data, "profile", "baseline", 0);
+
+		int ret = av_hwdevice_ctx_create(&_hw_device_ctx, AVHWDeviceType::AV_HWDEVICE_TYPE_QSV, "auto", nullptr, 0);
+		if ( ret < 0)
 		{
-			av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
-			av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
-			av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
+			char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
+			av_strerror(ret, error_msg, sizeof(error_msg));
+
+			logte("Could not create hardware device, error(%d), reason(%s)", ret, error_msg);
 		}
-		else if (codec->name == "h264_qsv")
+		else
 		{
-			int ret = av_hwdevice_ctx_create(&_hw_device_ctx, AVHWDeviceType::AV_HWDEVICE_TYPE_QSV, "auto", nullptr, 0);
-			if ( ret < 0)
-			{
-				char error_msg[AV_ERROR_MAX_STRING_SIZE] = {0, };
-				av_strerror(ret, error_msg, sizeof(error_msg));
-
-				logte("Could not create hardware device, error(%d), reason(%s)", ret, error_msg);
-			}
-			else
-			{
-				_context->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
-			}
-
-			av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
-			av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
-			av_opt_set(_context->priv_data, "x264opts", "no-mbtree:sliced-threads:sync-lookahead=0", 0);
+			_context->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
 		}
-
+#endif
 	}
 
     int ret = avcodec_open2(_context, codec, nullptr);
@@ -173,7 +172,12 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::RecvBuffer(TranscodeRes
 		const MediaFrame *frame = buffer.get();
 		OV_ASSERT2(frame != nullptr);
 
-		_frame->format = frame->GetFormat();
+#ifdef QSV_EN
+		_frame->format = AV_PIX_FMT_NV12;
+#else
+        _frame->format = frame->GetFormat();
+#endif
+
 		_frame->width = frame->GetWidth();
 		_frame->height = frame->GetHeight();
 		_frame->pts = frame->GetPts();

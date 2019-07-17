@@ -26,7 +26,8 @@ public:
 #ifdef NVENC_EN
 		codec_name = "h264_nvenc";
 #endif
-#ifdef QSV_EN_
+
+#ifdef QSV_EN
 		codec_name = "h264_qsv";
 #endif
 
@@ -38,6 +39,8 @@ public:
 	bool Configure(std::shared_ptr<TranscodeContext> context) override;
 
 	std::unique_ptr<MediaPacket> RecvBuffer(TranscodeResult *result) override;
+
+    std::string codec_name;
 
 private:
 	std::unique_ptr<FragmentationHeader> MakeFragmentHeader();
