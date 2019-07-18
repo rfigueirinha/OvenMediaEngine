@@ -152,7 +152,7 @@ install_ffmpeg()
         --disable-static --enable-shared \
         --extra-libs=-ldl \
         --enable-ffprobe \
-        --disable-ffplay --disable-ffserver --disable-filters --disable-vaapi --disable-avdevice --disable-doc --disable-symver \
+        --disable-ffplay --disable-ffserver --disable-filters --disable-avdevice --disable-doc --disable-symver \
         --disable-debug --disable-indevs --disable-outdevs --disable-devices --disable-hwaccels --disable-encoders \
         --enable-hwaccel=h264_cuvid --enable-nvenc --enable-cuvid \
         --enable-zlib --enable-libopus --enable-libvpx --enable-libfdk_aac --enable-libx264 --enable-gpl --enable-nonfree \
