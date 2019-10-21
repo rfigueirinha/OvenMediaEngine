@@ -7,13 +7,13 @@
 			<Name>default</Name>
 			<IP>*</IP>
 			<!--
-            <TLS>
-                    <ChainCertPath>path/to/file.crt</ChainCertPath>
-                    <CertPath>path/to/file.crt</CertPath>
-                    <KeyPath>path/to/file.key</KeyPath>
-            </TLS>
-            -->
-			
+			<TLS>
+				<ChainCertPath>path/to/file.crt</ChainCertPath>
+				<CertPath>path/to/file.crt</CertPath>
+				<KeyPath>path/to/file.key</KeyPath>
+			</TLS>
+			-->
+
 			<Ports>
 				<Origin>${env:OME_ORIGIN_PORT:9000}</Origin>
 				<RTMPProvider>${env:OME_RTMP_PROV_PORT:1935}</RTMPProvider>
@@ -32,45 +32,181 @@
 					<Name>app</Name>
 					<Type>live</Type>
 					<Encodes>
+						<!--
+							The format of environment variables for encoding configuration
+
+							OME_<Type>_<Parameter><Index>:
+
+								Type: "A" for audio, "V" for video
+								Parameter:
+									NAME: Audio encoding profile name (Default: A: Audio<Index>, V: Video<Index>)
+									ACTIVE: Indicates whether or not enabled (Default: false)
+									CODEC: Name of codec. opus/aac, h264/vp8 (Default: A: opus, V: h264)
+									BPS: Bitrate (Default: A: 128000, V: 500000)
+									SR: Sample rate (audio only, Default: 48000)
+									CH: Channel count (audio only, Default: 2)
+									WIDTH: Width (video only, Default: 640)
+									HEIGHT: Height (video only, Default: 360)
+									FR: Frame rate (video only, Default: 30)
+								Index:
+									A number to distinguish encoding profiles (Range: 1 to 5)
+						-->
+
+						<!-- Configurations for Audio -->
 						<Encode>
-							<Name>VP8</Name>
+							<Name>${env:OME_A_NAME1:Audio1}</Name>
 							<Audio>
-								<Codec>opus</Codec>
-								<Bitrate>${env:OME_AUDIO_BITRATE:128000}</Bitrate>
-								<Samplerate>${env:OME_AUDIO_SAMPLERATE:48000}</Samplerate>
-								<Channel>${env:OME_AUDIO_CHANNEL:2}</Channel>
+								<Active>${env:OME_A_ACTIVE1:false}</Active>
+								<Codec>${env:OME_A_CODEC1:opus}</Codec>
+								<Bitrate>${env:OME_A_BPS1:128000}</Bitrate>
+								<Samplerate>${env:OME_A_SR1:48000}</Samplerate>
+								<Channel>${env:OME_A_CH1:2}</Channel>
 							</Audio>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_A_NAME2:Audio2}</Name>
+							<Audio>
+								<Active>${env:OME_A_ACTIVE2:false}</Active>
+								<Codec>${env:OME_A_CODEC2:opus}</Codec>
+								<Bitrate>${env:OME_A_BPS2:128000}</Bitrate>
+								<Samplerate>${env:OME_A_SR2:48000}</Samplerate>
+								<Channel>${env:OME_A_CH2:2}</Channel>
+							</Audio>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_A_NAME3:Audio3}</Name>
+							<Audio>
+								<Active>${env:OME_A_ACTIVE3:false}</Active>
+								<Codec>${env:OME_A_CODEC3:opus}</Codec>
+								<Bitrate>${env:OME_A_BPS3:128000}</Bitrate>
+								<Samplerate>${env:OME_A_SR3:48000}</Samplerate>
+								<Channel>${env:OME_A_CH3:2}</Channel>
+							</Audio>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_A_NAME4:Audio4}</Name>
+							<Audio>
+								<Active>${env:OME_A_ACTIVE4:false}</Active>
+								<Codec>${env:OME_A_CODEC4:opus}</Codec>
+								<Bitrate>${env:OME_A_BPS4:128000}</Bitrate>
+								<Samplerate>${env:OME_A_SR4:48000}</Samplerate>
+								<Channel>${env:OME_A_CH4:2}</Channel>
+							</Audio>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_A_NAME5:Audio5}</Name>
+							<Audio>
+								<Active>${env:OME_A_ACTIVE5:false}</Active>
+								<Codec>${env:OME_A_CODEC5:opus}</Codec>
+								<Bitrate>${env:OME_A_BPS5:128000}</Bitrate>
+								<Samplerate>${env:OME_A_SR5:48000}</Samplerate>
+								<Channel>${env:OME_A_CH5:2}</Channel>
+							</Audio>
+						</Encode>
+
+						<!-- Configurations for Video -->
+						<Encode>
+							<Name>${env:OME_V_NAME1:Video1}</Name>
 							<Video>
-								<Codec>vp8</Codec>
-								<Width>${env:OME_VIDEO_WIDTH:640}</Width>
-								<Height>${env:OME_VIDEO_HEIGHT:360}</Height>
-								<Bitrate>${env:OME_VIDEO_BITRATE:500000}</Bitrate>
-								<Framerate>${env:OME_VIDEO_FRAMERATE:30}</Framerate>
+								<Active>${env:OME_V_ACTIVE1:false}</Active>
+								<Codec>${env:OME_V_CODEC1:h264}</Codec>
+								<Width>${env:OME_V_WIDTH1:640}</Width>
+								<Height>${env:OME_V_HEIGHT1:360}</Height>
+								<Bitrate>${env:OME_V_BPS1:500000}</Bitrate>
+								<Framerate>${env:OME_V_FR1:30}</Framerate>
 							</Video>
 						</Encode>
 						<Encode>
-							<Name>H264</Name>
-							<Audio>
-								<Codec>aac</Codec>
-								<Bitrate>${env:OME_AUDIO_BITRATE:128000}</Bitrate>
-								<Samplerate>${env:OME_AUDIO_SAMPLERATE:48000}</Samplerate>
-								<Channel>${env:OME_AUDIO_CHANNEL:2}</Channel>
-							</Audio>
+							<Name>${env:OME_V_NAME2:Video2}</Name>
 							<Video>
-								<Codec>h264</Codec>
-								<Width>${env:OME_VIDEO_WIDTH:640}</Width>
-								<Height>${env:OME_VIDEO_HEIGHT:360}</Height>
-								<Bitrate>${env:OME_VIDEO_BITRATE:500000}</Bitrate>
-								<Framerate>${env:OME_VIDEO_FRAMERATE:30}</Framerate>
+								<Active>${env:OME_V_ACTIVE2:false}</Active>
+								<Codec>${env:OME_V_CODEC2:h264}</Codec>
+								<Width>${env:OME_V_WIDTH2:640}</Width>
+								<Height>${env:OME_V_HEIGHT2:360}</Height>
+								<Bitrate>${env:OME_V_BPS2:500000}</Bitrate>
+								<Framerate>${env:OME_V_FR2:30}</Framerate>
+							</Video>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_V_NAME3:Video3}</Name>
+							<Video>
+								<Active>${env:OME_V_ACTIVE3:false}</Active>
+								<Codec>${env:OME_V_CODEC3:h264}</Codec>
+								<Width>${env:OME_V_WIDTH3:640}</Width>
+								<Height>${env:OME_V_HEIGHT3:360}</Height>
+								<Bitrate>${env:OME_V_BPS3:500000}</Bitrate>
+								<Framerate>${env:OME_V_FR3:30}</Framerate>
+							</Video>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_V_NAME4:Video4}</Name>
+							<Video>
+								<Active>${env:OME_V_ACTIVE4:false}</Active>
+								<Codec>${env:OME_V_CODEC4:h264}</Codec>
+								<Width>${env:OME_V_WIDTH4:640}</Width>
+								<Height>${env:OME_V_HEIGHT4:360}</Height>
+								<Bitrate>${env:OME_V_BPS4:500000}</Bitrate>
+								<Framerate>${env:OME_V_FR4:30}</Framerate>
+							</Video>
+						</Encode>
+						<Encode>
+							<Name>${env:OME_V_NAME5:Video5}</Name>
+							<Video>
+								<Active>${env:OME_V_ACTIVE5:false}</Active>
+								<Codec>${env:OME_V_CODEC5:h264}</Codec>
+								<Width>${env:OME_V_WIDTH5:640}</Width>
+								<Height>${env:OME_V_HEIGHT5:360}</Height>
+								<Bitrate>${env:OME_V_BPS5:500000}</Bitrate>
+								<Framerate>${env:OME_V_FR5:30}</Framerate>
 							</Video>
 						</Encode>
 					</Encodes>
 					<Streams>
+						<!--
+							The format of environment variables for stream configuration
+
+							OME_S_<Parameter><Index>:
+
+								Parameter:
+									NAME: stream name (default: stream_<Index>)
+									PROFILEA: Specificy the audio encoding profile name (<Encode>.<Name>, default: Audio1)
+									PROFILEV: Specificy the video encoding profile name (<Encode>.<Name>, default: Video1)
+								Index:
+									A number to distinguish streams (Range: 1 to 5)
+						-->
 						<Stream>
-							<Name>${OriginStreamName}_o</Name>
+							<Name>${env:OME_S_NAME1:stream_1}</Name>
 							<Profiles>
-								<Profile>VP8</Profile>
-								<Profile>H264</Profile>
+								<Profile>${env:OME_S_PROFILEA1:Audio1}</Profile>
+								<Profile>${env:OME_S_PROFILEV1:Video1}</Profile>
+							</Profiles>
+						</Stream>
+						<Stream>
+							<Name>${env:OME_S_NAME2:stream_2}</Name>
+							<Profiles>
+								<Profile>${env:OME_S_PROFILEA2:Audio2}</Profile>
+								<Profile>${env:OME_S_PROFILEV2:Video2}</Profile>
+							</Profiles>
+						</Stream>
+						<Stream>
+							<Name>${env:OME_S_NAME3:stream_3}</Name>
+							<Profiles>
+								<Profile>${env:OME_S_PROFILEA3:Audio3}</Profile>
+								<Profile>${env:OME_S_PROFILEV3:Video3}</Profile>
+							</Profiles>
+						</Stream>
+						<Stream>
+							<Name>${env:OME_S_NAME4:stream_4}</Name>
+							<Profiles>
+								<Profile>${env:OME_S_PROFILEA4:Audio4}</Profile>
+								<Profile>${env:OME_S_PROFILEV4:Video4}</Profile>
+							</Profiles>
+						</Stream>
+						<Stream>
+							<Name>${env:OME_S_NAME5:stream_5}</Name>
+							<Profiles>
+								<Profile>${env:OME_S_PROFILEA5:Audio5}</Profile>
+								<Profile>${env:OME_S_PROFILEV5:Video5}</Profile>
 							</Profiles>
 						</Stream>
 					</Streams>
@@ -78,7 +214,7 @@
 						<RTMP />
 					</Providers>
 					<Publishers>
-						<ThreadCount>2</ThreadCount>
+						<ThreadCount>4</ThreadCount>
 						<HLS>
 							<SegmentDuration>5</SegmentDuration>
 							<SegmentCount>3</SegmentCount>
