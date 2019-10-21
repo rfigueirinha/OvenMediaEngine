@@ -152,7 +152,7 @@
 						<Encode>
 							<Name>${env:OME_V_NAME5:Video5}</Name>
 							<Video>
-								<Active>true</Active>
+								<Active>${env:OME_V_ACTIVE5:true}</Active>
 								<Codec>${env:OME_V_CODEC5:h264}</Codec>
 								<Width>${env:OME_V_WIDTH5:1280}</Width>
 								<Height>${env:OME_V_HEIGHT5:720}</Height>
