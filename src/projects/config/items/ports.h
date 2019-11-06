@@ -78,7 +78,7 @@ namespace cfg
 			RegisterValue<Optional>("RTMPProvider", &_rtmp_provider_port);
 
 			// Providers
-			RegisterValue<Optional>("MpegTsProvider", &_mpegts_provider_port);
+			RegisterValue<Optional>("MPEGTSProvider", &_mpegts_provider_port);
 
 			// Publishers
 			RegisterValue<Optional>("RTMP", &_rtmp_port);
@@ -96,7 +96,7 @@ namespace cfg
 		Port _rtmp_provider_port { "1935/tcp" };
 
 		// Listen port for Providers
-		Port _mpegts_provider_port { "1234/udp" };
+		Port _mpegts_provider_port { "1936/udp" };
 
 		// Listen port for Publishers
 		Port _rtmp_port { "1935/tcp" };

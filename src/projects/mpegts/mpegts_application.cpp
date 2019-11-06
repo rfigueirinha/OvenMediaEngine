@@ -1,19 +1,17 @@
 //==============================================================================
 //
-//  MpegTsProvider
+//  OvenMediaEngine
 //
-//  Created by Benjamin
+//  Created by Hyunjun Jang
 //  Copyright (c) 2019 AirenSoft. All rights reserved.
 //
 //==============================================================================
-
 #include "mpegts_application.h"
 #include "mpegts_stream.h"
+#include "mpegts_private.h"
 
 #include "base/provider/application.h"
 #include "base/application/stream_info.h"
-
-#define OV_LOG_TAG "MpegTsApplication"
 
 std::shared_ptr<MpegTsApplication> MpegTsApplication::Create(const info::Application *application_info)
 {

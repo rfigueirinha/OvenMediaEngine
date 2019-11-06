@@ -199,7 +199,7 @@ bool RtmpProvider::OnStreamReadyComplete(const ov::String &app_name,
 	application_id = application->GetId();
 	stream_id = stream->GetId();
 
-	logtd("Strem ready complete - app(%s/%u) stream(%s/%u)", app_name.CStr(), application_id, stream_name.CStr(), stream_id);
+	logtd("The RTMP stream is ready: [%s/%s] (%u/%u)", app_name.CStr(), stream_name.CStr(), application_id, stream_id);
 
 	return true;
 }

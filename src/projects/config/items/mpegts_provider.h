@@ -19,7 +19,7 @@ namespace cfg
 			return ProviderType::MpegTs;
 		}
 
-		bool IsBlockDuplicateStreamName () const
+		bool IsBlockDuplicateStreamName() const
 		{
 			return _is_block_duplicate_stream_name;
 		}
@@ -29,9 +29,9 @@ namespace cfg
 		{
 			Provider::MakeParseList();
 
-            RegisterValue<Optional>("BlockDuplicateStreamName", &_is_block_duplicate_stream_name);
+			RegisterValue<Optional>("BlockDuplicateStreamName", &_is_block_duplicate_stream_name);
 		}
 
-		bool _is_block_duplicate_stream_name = true; // true - block   false - non block
+		bool _is_block_duplicate_stream_name = true;  // true - block   false - non block
 	};
-}
+}  // namespace cfg

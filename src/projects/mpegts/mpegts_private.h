@@ -8,20 +8,4 @@
 //==============================================================================
 #pragma once
 
-#include "base/common_types.h"
-#include "base/provider/stream.h"
-
-using namespace pvd;
-
-class MpegTsStream : public Stream
-{
-public:
-	static std::shared_ptr<MpegTsStream> Create();
-
-public:
-	explicit MpegTsStream();
-	~MpegTsStream() final;
-
-private:
-
-};
+#define OV_LOG_TAG "MPEGTSProvider"

@@ -1,12 +1,11 @@
 //==============================================================================
 //
-//  MpegTsProvider
+//  OvenMediaEngine
 //
-//  Created by Benjamin
+//  Created by Hyunjun Jang
 //  Copyright (c) 2019 AirenSoft. All rights reserved.
 //
 //==============================================================================
-
 #pragma once
 
 #include <string.h>

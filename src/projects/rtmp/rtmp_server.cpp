@@ -67,7 +67,7 @@ bool RtmpServer::Stop()
 
 bool RtmpServer::AddObserver(const std::shared_ptr<RtmpObserver> &observer)
 {
-	logtd("Trying to add an observer %p with the RTMP Server", observer.get());
+	logtd("Trying to add an observer %p to the RTMP server", observer.get());
 
 	// Verify that the observer is already registered
 	auto item = std::find_if(_observers.begin(), _observers.end(), [&](std::shared_ptr<RtmpObserver> const &value) -> bool {
@@ -76,7 +76,7 @@ bool RtmpServer::AddObserver(const std::shared_ptr<RtmpObserver> &observer)
 
 	if (item != _observers.end())
 	{
-		logtw("The observer %p is already registered with RTMP Server", observer.get());
+		logtw("The observer %p is already registered with RTMP server", observer.get());
 		return false;
 	}
 
@@ -93,7 +93,7 @@ bool RtmpServer::RemoveObserver(const std::shared_ptr<RtmpObserver> &observer)
 
 	if (item == _observers.end())
 	{
-		logtw("The observer %p is not registered with RTMP Server", observer.get());
+		logtw("The observer %p is not registered with RTMP server", observer.get());
 		return false;
 	}
 
@@ -278,6 +278,7 @@ bool RtmpServer::OnChunkStreamAudioData(ov::ClientSocket *remote,
 		if (!observer->OnAudioData(application_id, stream_id, timestamp, frame_type, data))
 		{
 			logte("Could not send audio data to observer %p: (%u/%u), remote: %s",
+				  observer.get(),
 				  application_id, stream_id,
 				  remote->ToString().CStr());
 			return false;

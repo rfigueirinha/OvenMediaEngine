@@ -1,12 +1,12 @@
 //==============================================================================
 //
-//  MpegTsProvider
+//  OvenMediaEngine
 //
-//  Created by Benjamin
+//  Created by Hyunjun Jang
 //  Copyright (c) 2019 AirenSoft. All rights reserved.
 //
 //==============================================================================
-
+#include "mpegts_private.h"
 #include "mpegts_stream.h"
 
 std::shared_ptr<MpegTsStream> MpegTsStream::Create()
