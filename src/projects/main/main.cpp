@@ -23,6 +23,7 @@
 #include <config/config_manager.h>
 #include <media_router/media_router.h>
 #include <monitoring/monitoring_server.h>
+#include <mpegts/mpegts_provider.h>
 #include <publishers/publishers.h>
 #include <rtmp/rtmp_provider.h>
 #include <transcode/transcoder.h>
@@ -36,17 +37,17 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-#define CHECK_FAIL(x) \
-    if((x) == nullptr) \
-    { \
-        srt_cleanup(); \
-		\
-		if(parse_option.start_service) \
-		{ \
-        	ov::Daemon::SetEvent(false); \
-		} \
-        return 1; \
-    }
+#define CHECK_FAIL(x)                    \
+	if ((x) == nullptr)                  \
+	{                                    \
+		srt_cleanup();                   \
+                                         \
+		if (parse_option.start_service)  \
+		{                                \
+			ov::Daemon::SetEvent(false); \
+		}                                \
+		return 1;                        \
+	}
 
 void SrtLogHandler(void *opaque, int level, const char *file, int line, const char *area, const char *message);
 
@@ -224,6 +225,14 @@ int main(int argc, char *argv[])
 				{
 					logti("Trying to create RTMP Provider for application [%s/%s]...", host_name.CStr(), app_name.CStr());
 					auto provider = RtmpProvider::Create(&application_info, router);
+					CHECK_FAIL(provider);
+					providers.push_back(provider);
+				}
+
+				if (application_info.GetType() == cfg::ApplicationType::Live)
+				{
+					logti("Trying to create MPEG-TS Provider for application [%s/%s]...", host_name.CStr(), app_name.CStr());
+					auto provider = MpegTsProvider::Create(&application_info, router);
 					CHECK_FAIL(provider);
 					providers.push_back(provider);
 				}

@@ -22,6 +22,7 @@ LOCAL_STATIC_LIBRARIES := \
 	config \
 	ovlibrary \
 	rtmpprovider \
+	mpegtsprovider \
 	publishers \
 	segment_stream \
 	monitoring \

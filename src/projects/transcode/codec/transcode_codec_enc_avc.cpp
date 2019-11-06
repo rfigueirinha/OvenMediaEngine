@@ -211,6 +211,7 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::MakePacket() const
 		}
 		else
 		{
+			// nal_unit_type == 0x06 -> SEI
 			current_index++;
 			continue;
 		}
