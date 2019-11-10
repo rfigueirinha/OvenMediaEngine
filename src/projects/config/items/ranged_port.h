@@ -8,58 +8,31 @@
 //==============================================================================
 #pragma once
 
-#include "../item.h"
-
-#include <base/ovsocket/socket.h>
+#include "port.h"
 
 namespace cfg
 {
-	struct Port : public Item
+	struct RangedPort : public Port
 	{
-		Port(const char *port, ov::SocketType default_type)
+		RangedPort(const char *port, ov::SocketType default_type)
 			: _port(port),
 			  _default_type(default_type)
 		{
 		}
 
-		explicit Port(const char *port)
+		explicit RangedPort(const char *port)
 			: _port(port)
 		{
 		}
 
-		virtual int GetPort() const
+		std::vector<int> GetPortList() const
 		{
 			return ov::Converter::ToInt32(_port);
 		}
 
-		ov::SocketType GetSocketType() const
-		{
-			auto tokens = _port.Split("/");
-
-			if (tokens.size() != 2)
-			{
-				return _default_type;
-			}
-
-			auto type = tokens[1].UpperCaseString();
-
-			if (type == "TCP")
-			{
-				return ov::SocketType::Tcp;
-			}
-			else if (type == "UDP")
-			{
-				return ov::SocketType::Udp;
-			}
-			else if (type == "SRT")
-			{
-				return ov::SocketType::Srt;
-			}
-
-			return ov::SocketType::Unknown;
-		}
-
 	protected:
+		using Port::GetPort;
+
 		void MakeParseList() const override
 		{
 			RegisterValue<ValueType::Text>(nullptr, &_port);
