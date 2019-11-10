@@ -64,7 +64,19 @@ public:
 	bool OnDeleteStream(info::application_id_t application_id, uint32_t stream_id) override;
 
 private:
+	struct MpegTsStream
+	{
+		ov::SocketAddress address;
+
+		ov::String app_name;
+		ov::String stream_name;
+	};
+
 	const cfg::MpegTsProvider *_provider_info = nullptr;
 
 	std::shared_ptr<MpegTsServer> _mpegts_server;
+
+	// key: port
+	// value: stream information
+	std::map<int, MpegTsStream> _stream_table;
 };

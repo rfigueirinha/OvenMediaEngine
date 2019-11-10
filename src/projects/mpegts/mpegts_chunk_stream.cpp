@@ -30,11 +30,9 @@ int32_t MpegTsChunkStream::OnDataReceived(const std::shared_ptr<const ov::Data> 
 
 	if (process_size < 0)
 	{
-		logte("Process Size Fail - stream(%s/%s) id(%u/%u) size(%d)",
-			  _app_name.CStr(),
-			  _stream_name.CStr(),
-			  _app_id,
-			  _stream_id,
+		logte("Could not process MPEG-TS packet: [%s/%s] (%u/%u), %d",
+			  _app_name.CStr(), _stream_name.CStr(),
+			  _app_id, _stream_id,
 			  process_size);
 
 		return -1;
@@ -46,10 +44,8 @@ int32_t MpegTsChunkStream::OnDataReceived(const std::shared_ptr<const ov::Data> 
 int32_t MpegTsChunkStream::ReceiveChunkPacket(const std::shared_ptr<const ov::Data> &data)
 {
 	int32_t process_size = 0;
-	auto current_data = data;
 
-	while (current_data->IsEmpty() == false)
-	// while (process_size < static_cast<int32_t>(data->GetLength()))
+	while (process_size < static_cast<int32_t>(data->GetLength()))
 	{
 		/*
          * TS header
@@ -78,38 +74,38 @@ int32_t MpegTsChunkStream::ReceiveChunkPacket(const std::shared_ptr<const ov::Da
 		// FIXME(dimiden): If the client has sent only part of the TS header, there is a possibility of buffer overflow
 
 		// sync_byte
-		_packet->sync_byte = current_data->At(process_size + 0);
+		_packet->sync_byte = data->At(process_size + 0);
 
 		// payload_unit_start_indicator
-		_packet->payload_unit_start_indicator = (current_data->At(process_size + 1) & TS_UNIT_START_INDICATOR_MASK);
+		_packet->payload_unit_start_indicator = (data->At(process_size + 1) & TS_UNIT_START_INDICATOR_MASK);
 
 		// transport_error_indicator
-		_packet->transport_error_indicator = (current_data->At(process_size + 1) & TS_TRANSPORT_ERROR_INDICATOR_MASK);
+		_packet->transport_error_indicator = (data->At(process_size + 1) & TS_TRANSPORT_ERROR_INDICATOR_MASK);
 
 		// transport_priority
-		_packet->transport_priority = (current_data->At(process_size + 1) & TS_TRANSPORT_PRIORITY_MASK);
+		_packet->transport_priority = (data->At(process_size + 1) & TS_TRANSPORT_PRIORITY_MASK);
 
 		// continuity_counter
-		_packet->continuity_counter = (current_data->At(process_size + 3) & TS_CONTINUITY_COUNTER_MASK);
+		_packet->continuity_counter = (data->At(process_size + 3) & TS_CONTINUITY_COUNTER_MASK);
 
 		// packet_identifier
-		_packet->packet_identifier = (current_data->At(process_size + 1) << 8) | current_data->At(process_size + 2);
+		_packet->packet_identifier = (data->At(process_size + 1) << 8) | data->At(process_size + 2);
 		_packet->packet_identifier &= TS_PACKET_IDENTIFIER_MASK;
 
 		// adaptation_field
-		_packet->adaptation_field = ((current_data->At(process_size + 3) & TS_ADAPTATION_FIELD_MASK) == TS_ADAPTATION_FIELD_MASK);
+		_packet->adaptation_field = ((data->At(process_size + 3) & TS_ADAPTATION_FIELD_MASK) == TS_ADAPTATION_FIELD_MASK);
 
 		// adaptation_field_length
 		if (_packet->adaptation_field)
 		{
-			_packet->adaptation_field_length = current_data->At(process_size + 4);
+			_packet->adaptation_field_length = data->At(process_size + 4);
 		}
 		else
 		{
 			_packet->adaptation_field_length = 0;
 		}
 
-		if (!_packet->packet_identifier)
+		if (_packet->packet_identifier == 0)
 		{
 			process_size += MPEGTS_MAX_PACKET_SIZE;
 			continue;
@@ -133,11 +129,7 @@ int32_t MpegTsChunkStream::ReceiveChunkPacket(const std::shared_ptr<const ov::Da
 
 		auto pes_payload = MPEGTS_HEADER_SIZE + _packet->adaptation_field + _packet->adaptation_field_length;
 
-		auto pes_packet = current_data->Subdata(process_size + pes_payload, (MPEGTS_MAX_PACKET_SIZE - pes_payload));
-		// auto pes_packet = std::make_shared<std::vector<uint8_t>>(
-		// 	data->begin() + process_size + pes_payload,
-		// 	data->begin() + process_size + MPEGTS_MAX_PACKET_SIZE);
-
+		auto pes_packet = data->Subdata(process_size + pes_payload, (MPEGTS_MAX_PACKET_SIZE - pes_payload));
 		ReceiveChunkMessage(pes_packet);
 
 		process_size += MPEGTS_MAX_PACKET_SIZE;
@@ -271,23 +263,20 @@ bool MpegTsChunkStream::ReceiveChunkMessage(const std::shared_ptr<const ov::Data
 
 bool MpegTsChunkStream::ReceiveVideoMessage()
 {
-	if (!_media_info->video_streaming && _video_data->GetFrameType() == MpegTsFrameType::VideoIFrame)
-	{
-		_media_info->video_streaming = true;
-	}
-
-	if (!_media_info->video_streaming)
+	if (_video_data->GetFrameType() != MpegTsFrameType::VideoIFrame)
 	{
 		_video_data->Clear();
 		return false;
 	}
 
-	if (!_media_info->start_streaming && (_media_info->video_streaming && _media_info->audio_streaming))
+	_media_info->video_streaming = true;
+
+	if ((_media_info->start_streaming == false) && (_media_info->video_streaming && _media_info->audio_streaming))
 	{
 		_media_info->start_streaming = StreamCreate();
 	}
 
-	if (!_media_info->start_streaming)
+	if (_media_info->start_streaming == false)
 	{
 		_media_info->video_streaming = false;
 		_video_data->Clear();
@@ -295,8 +284,7 @@ bool MpegTsChunkStream::ReceiveVideoMessage()
 	}
 
 	_stream_interface->OnChunkStreamVideoData(nullptr,
-											  _app_id,
-											  _stream_id,
+											  _app_id, _stream_id,
 											  _video_data->GetMediaTimeStamp(),
 											  _video_data->GetFrameType(),
 											  _video_data->GetData());
@@ -309,15 +297,10 @@ bool MpegTsChunkStream::ReceiveAudioMessage()
 {
 	_media_info->audio_streaming = true;
 
-	if (!_media_info->start_streaming)
-	{
-		_audio_data->Clear();
-		return false;
-	}
-
 	auto data = _audio_data->GetData();
 
 	int adts_start = 0;
+
 	while (adts_start < data->GetLength())
 	{
 		// Invalid audio data
@@ -330,13 +313,11 @@ bool MpegTsChunkStream::ReceiveAudioMessage()
 		uint32_t frame_length = ((data->At(adts_start + 3) & 0x03) << 11 | (data->At(adts_start + 4) & 0xFF) << 3 | data->At(adts_start + 5) >> 5);
 
 		auto buffer = data->Subdata(adts_start, frame_length);
-		// auto buffer = std::make_shared<std::vector<uint8_t>>();
-		// buffer->insert(buffer->end(), data->begin() + adts_start, data->begin() + adts_start + frame_length);
+
 		adts_start += frame_length;
 
 		_stream_interface->OnChunkStreamAudioData(nullptr,
-												  _app_id,
-												  _stream_id,
+												  _app_id, _stream_id,
 												  _audio_data->GetMediaTimeStamp(),
 												  _audio_data->GetFrameType(),
 												  buffer);
@@ -349,12 +330,7 @@ bool MpegTsChunkStream::ReceiveAudioMessage()
 
 bool MpegTsChunkStream::StreamCreate()
 {
-	return _stream_interface->OnChunkStreamReady(_client_ipaddr,
-												 _app_name,
-												 _stream_name,
-												 _media_info,
-												 _app_id,
-												 _stream_id);
+	return _stream_interface->OnChunkStreamReady(_client_ipaddr, _app_name, _stream_name, _media_info, _app_id, _stream_id);
 }
 
 void MpegTsChunkStream::CheckStreamAlive()

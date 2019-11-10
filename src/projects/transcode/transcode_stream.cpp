@@ -7,8 +7,8 @@
 //
 //==============================================================================
 
-#include "transcode_application.h"
 #include "transcode_stream.h"
+#include "transcode_application.h"
 
 #include <config/config_manager.h>
 
@@ -162,6 +162,8 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
 				video_profile->GetWidth(), video_profile->GetHeight(),
 				video_profile->GetFramerate());
 
+			OV_ASSERT(output_context->GetCodecId() != common::MediaCodecId::None, "Unknown codec: [%s] (%s)", video_profile->GetCodec().CStr(), encode.GetName().CStr());
+
 			uint8_t track_id = AddOutputContext(common::MediaType::Video, output_context);
 			if (track_id)
 			{
@@ -176,6 +178,9 @@ TranscodeStream::TranscodeStream(const info::Application *application_info, std:
 				GetCodecId(audio_profile->GetCodec()),
 				GetBitrate(audio_profile->GetBitrate()),
 				audio_profile->GetSamplerate());
+
+
+			OV_ASSERT(output_context->GetCodecId() != common::MediaCodecId::None, "Unknown codec: [%s] (%s)", audio_profile->GetCodec().CStr(), encode.GetName().CStr());
 
 			uint8_t track_id = AddOutputContext(common::MediaType::Audio, output_context);
 			if (track_id)

@@ -191,10 +191,9 @@ bool MpegTsServer::OnChunkStreamAudioData(ov::ClientSocket *remote,
 	{
 		if (observer->OnAudioData(application_id, stream_id, timestamp, frame_type, data) == false)
 		{
-			logte("Could not send audio data to observer %p: (%u/%u), remote: %s",
+			logte("Could not send audio data to observer %p: (%u/%u)",
 				  observer.get(),
-				  application_id, stream_id,
-				  remote->ToString().CStr());
+				  application_id, stream_id);
 			return false;
 		}
 	}
@@ -208,7 +207,7 @@ bool MpegTsServer::OnDeleteStream(ov::ClientSocket *remote,
 {
 	for (auto &observer : _observers)
 	{
-		if (!observer->OnDeleteStream(application_id, stream_id))
+		if (observer->OnDeleteStream(application_id, stream_id) == false)
 		{
 			logte("MpegTs input stream delete fail - stream(%s/%s) id(%u/%u)",
 				  app_name.CStr(), stream_name.CStr(),
