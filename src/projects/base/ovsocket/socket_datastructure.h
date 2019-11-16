@@ -48,4 +48,6 @@ namespace ov
 
 	const ssize_t TcpBufferSize = 4096;
 	const ssize_t UdpBufferSize = 4096;
+
+	typedef uint16_t port_t;
 }  // namespace ov
