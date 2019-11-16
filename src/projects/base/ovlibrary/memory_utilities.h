@@ -25,7 +25,8 @@
 #define OV_SAFE_FREE(x)                             OV_SAFE_FUNC(x, nullptr, OV_GLOBAL_NAMESPACE_PREFIX free,) // NOLINT
 #define OV_CHECK_FLAG(x, flag)                      (((x) & (flag)) == (flag))
 
-// value에서 index(0-based)번째 비트의 값을 얻어옴. 아래 식 대신 (((value) & (1 << index)) >> index) 를 사용해도 됨
+// value에서 index(0-based)번째 비트의 값을 얻어옴. (오른쪽이 0)
+// 아래 식 대신 (((value) & (1 << index)) >> index) 를 사용해도 됨
 // 예) ~는 계산해야 할 부분의 bit, !는 shift로 생긴 bit
 // OV_GET_BIT(0b1010, 2) == 0b0
 //               ~            ~
@@ -34,7 +35,9 @@
 //     ~                   !! ~              ~     ~
 #define OV_GET_BIT(value, index)                  (((value) >> (index)) & 1)
 
-// value에서 index(0-based)번째 부터 (index + count)까지의 비트를 얻어옴
+#define OV_GET_BIT_BOOL(value, index)                  (static_cast<bool>(((value) >> (index)) & 1))
+
+// value에서 index(0-based)번째 부터 (index + count)까지의 비트를 얻어옴 (오른쪽이 0)
 // 예) ~는 계산해야 할 부분의 bit, !는 shift로 생긴 bit
 // OV_GET_BITS(0b00111100, 5, 2) == 0b01
 //                ~~                  ~~
