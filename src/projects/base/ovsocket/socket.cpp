@@ -1480,11 +1480,12 @@ namespace ov
 		else
 		{
 			return String::FormatString(
-				"<%s: %p, #%d, state: %d, %s, %s>",
+				"<%s: %p, #%d, state: %d, %s, Local: %s, Remote: %s>",
 				class_name, this,
 				_socket.GetSocket(), _state,
 				StringFromSocketType(GetType()),
-				_remote_address->ToString().CStr());
+				(_local_address == nullptr) ? "N/A" : _local_address->ToString().CStr(),
+				(_remote_address == nullptr) ? "N/A" : _remote_address->ToString().CStr());
 		}
 	}
 
