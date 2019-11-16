@@ -10,6 +10,7 @@
 
 #include "port.h"
 #include "webrtc_port.h"
+#include "ranged_port.h"
 
 namespace cfg
 {
@@ -96,7 +97,7 @@ namespace cfg
 		Port _rtmp_provider_port { "1935/tcp" };
 
 		// Listen port for Providers
-		Port _mpegts_provider_port { "1936/udp" };
+		RangedPort _mpegts_provider_port { "7000-7010/udp" };
 
 		// Listen port for Publishers
 		Port _rtmp_port { "1935/tcp" };

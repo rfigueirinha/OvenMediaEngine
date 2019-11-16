@@ -15,19 +15,23 @@ namespace cfg
 	struct RangedPort : public Port
 	{
 		RangedPort(const char *port, ov::SocketType default_type)
-			: _port(port),
-			  _default_type(default_type)
+			: Port(port, default_type)
 		{
 		}
 
 		explicit RangedPort(const char *port)
-			: _port(port)
+			: Port(port)
 		{
 		}
 
-		std::vector<int> GetPortList() const
+		virtual ov::String GetRangedPort() const
 		{
-			return ov::Converter::ToInt32(_port);
+			if(_port.IsEmpty() == false)
+			{
+				return _port.Split("/")[0];
+			}
+
+			return _port;
 		}
 
 	protected:
@@ -35,11 +39,7 @@ namespace cfg
 
 		void MakeParseList() const override
 		{
-			RegisterValue<ValueType::Text>(nullptr, &_port);
+			Port::MakeParseList();
 		}
-
-		ov::String _port;
-
-		ov::SocketType _default_type = ov::SocketType::Tcp;
 	};
 }  // namespace cfg
