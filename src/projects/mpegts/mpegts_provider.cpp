@@ -41,6 +41,80 @@ MpegTsProvider::~MpegTsProvider()
 	logtd("MPEG-TS Provider is destroyed");
 }
 
+bool MpegTsProvider::ParseAddressList(const ov::String &ip, const cfg::RangedPort &ranged_port, std::map<ov::port_t, ov::SocketAddress> *address_list, ov::port_t *min_port)
+{
+	if (ranged_port.IsParsed() == false)
+	{
+		return false;
+	}
+
+	if (ranged_port.GetSocketType() != ov::SocketType::Udp)
+	{
+		logte("MPEG-TS provider does not support socket type: %d", static_cast<int>(ranged_port.GetSocketType()));
+		return false;
+	}
+
+	auto ports = ranged_port.GetRangedPort().Split(",");
+	ov::port_t minimum_port = std::numeric_limits<ov::port_t>::max();
+
+	for (auto port : ports)
+	{
+		port = port.Trim();
+
+		auto range = port.Split("-");
+		ov::port_t start = 0;
+		ov::port_t end = 0;
+
+		switch (range.size())
+		{
+			case 1:
+				// single port number
+				start = ov::Converter::ToUInt16(port);
+				end = start;
+				break;
+
+			case 2:
+				// port range
+				start = ov::Converter::ToUInt16(range[0]);
+				end = ov::Converter::ToUInt16(range[1]);
+				break;
+
+			default:
+				logte("Invalid port range: %s (%zu tokens found)", port.CStr(), range.size());
+				return false;
+		}
+
+		if (end < start)
+		{
+			logte("Invalid port range: %s (end port MUST be greater than start port)", port.CStr());
+			return false;
+		}
+
+		minimum_port = std::min(minimum_port, start);
+
+		for (ov::port_t port_num = start; port_num <= end; port_num++)
+		{
+			if (address_list->find(port_num) != address_list->end())
+			{
+				logte("The port number is in conflict: %d", port_num);
+				return false;
+			}
+
+			address_list->emplace(port_num, std::move(ov::SocketAddress(ip, port_num)));
+		}
+	}
+
+	if (address_list->size() == 0)
+	{
+		logte("No ports are available");
+		return false;
+	}
+
+	*min_port = minimum_port;
+
+	return true;
+}
+
 bool MpegTsProvider::Start()
 {
 	// Find MPEG-TS provider configuration
@@ -60,16 +134,110 @@ bool MpegTsProvider::Start()
 		return false;
 	}
 
-	int port = host->GetPorts().GetMpegTsProviderPort().GetPort();
+	auto mpegts_port = dynamic_cast<const cfg::RangedPort &>(host->GetPorts().GetMpegTsProviderPort());
+	std::map<ov::port_t, ov::SocketAddress> address_list;
+	ov::port_t min_port = 0;
 
-	auto mpegts_address = ov::SocketAddress(host->GetIp(), static_cast<uint16_t>(port));
+	if (ParseAddressList(host->GetIp(), mpegts_port, &address_list, &min_port) == false)
+	{
+		return false;
+	}
+
+	{
+		std::lock_guard<__decltype(_chunk_stream_list_mutex)> lock_guard(_chunk_stream_list_mutex);
+		// Create a stream mapping table
+		auto streams = _provider_info->GetStreamMap().GetStreamList();
+
+		_stream_table.clear();
+
+		// To check stream name duplication
+		std::map<ov::String, ov::port_t> stream_name_map;
+
+		for (auto &stream : streams)
+		{
+			auto name = stream.GetName();
+			auto port = stream.GetPort();
+
+			if (name.IsEmpty() || port.IsEmpty())
+			{
+				logte("Invalid MPEG-TS stream configuration: app: %s, name: %s, port: %s", _application_info->GetName().CStr(), name.CStr(), port.CStr());
+				return false;
+			}
+
+			auto full_name = ov::String::FormatString("%s/%s", _application_info->GetName().CStr(), name.CStr());
+
+			// "+" prefix indicates a relative value from the first port number in <Ports>.<MPEGTSProvider>
+			ov::port_t port_num;
+			bool is_relative = port.HasPrefix("+");
+
+			if (is_relative)
+			{
+				port_num = ov::Converter::ToUInt16(port.Substring(1)) + min_port;
+			}
+			else
+			{
+				port_num = ov::Converter::ToUInt16(port);
+			}
+
+			if (address_list.find(port_num) == address_list.end())
+			{
+				if (is_relative)
+				{
+					logte("The MPEG-TS port %d (%d%s) does not exists in the list of MPEG-TS provider ports", port_num, min_port, port.CStr());
+				}
+				else
+				{
+					logte("The MPEG-TS port %d does not exists in the list of MPEG-TS provider ports", port_num);
+				}
+
+				return false;
+			}
+
+			auto item = _stream_table.find(port_num);
+
+			if (item != _stream_table.end())
+			{
+				if (is_relative)
+				{
+					logte("The MPEG-TS port is conflicted: %d (%d%s) for [%s]", port_num, min_port, port.CStr(), full_name.CStr());
+				}
+				else
+				{
+					logte("The MPEG-TS port is conflicted: [%s] for [%s]", port.CStr(), full_name.CStr());
+				}
+
+				return false;
+			}
+
+			if (stream_name_map.find(name) != stream_name_map.end())
+			{
+				logte("The MPEG-TS stream name is conflicted: %s", name.CStr());
+				return false;
+			}
+
+			auto port_info = std::make_shared<MpegTsStreamInfo>(
+				MpegTsStreamInfo::PrivateToken(),
+				// Unknown address
+				ov::SocketAddress(),
+				// Application/Stream name
+				_application_info->GetName(), name,
+				// Application ID
+				_application_info->GetId(),
+				// Stream ID is not known at this point
+				0);
+
+			stream_name_map.emplace(name, port_num);
+
+			_stream_table.emplace(port_num, std::move(port_info));
+		}
+	}
+
 	_mpegts_server = std::make_shared<MpegTsServer>();
-
-	logti("MPEG-TS Provider is listening on %s...", mpegts_address.ToString().CStr());
-
 	_mpegts_server->AddObserver(MpegTsObserver::GetSharedPtr());
 
-	if (_mpegts_server->Start(mpegts_address) == false)
+	logti("MPEG-TS Provider is starting...");
+
+	if (_mpegts_server->Start(address_list) == false)
 	{
 		return false;
 	}
@@ -82,53 +250,73 @@ std::shared_ptr<Application> MpegTsProvider::OnCreateApplication(const info::App
 	return MpegTsApplication::Create(application_info);
 }
 
-bool MpegTsProvider::OnStreamReadyComplete(const ov::String &app_name, const ov::String &stream_name,
-										   std::shared_ptr<MpegTsMediaInfo> &media_info,
-										   info::application_id_t &application_id,
-										   uint32_t &stream_id)
+std::shared_ptr<const MpegTsStreamInfo> MpegTsProvider::OnQueryStreamInfo(uint16_t port_num, const ov::SocketAddress *address)
 {
-	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationByName(app_name.CStr()));
+	std::lock_guard<__decltype(_chunk_stream_list_mutex)> lock_guard(_chunk_stream_list_mutex);
+	auto stream_info = _stream_table.find(port_num);
+
+	if (stream_info == _stream_table.end())
+	{
+		return nullptr;
+	}
+
+	if (address != nullptr)
+	{
+		stream_info->second->address = *address;
+	}
+
+	return stream_info->second;
+}
+
+bool MpegTsProvider::OnStreamReady(const std::shared_ptr<const MpegTsStreamInfo> &stream_info,
+								   const std::shared_ptr<MpegTsMediaInfo> &media_info)
+{
+	OV_ASSERT2(stream_info != nullptr);
+	OV_ASSERT2(media_info != nullptr);
+
+	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationByName(stream_info->app_name.CStr()));
+
 	if (application == nullptr)
 	{
-		logte("Could not find an application for [%s/%s]", app_name.CStr(), stream_name.CStr());
+		logte("Could not find an application for %s", stream_info->ToString().CStr());
+		_mpegts_server->Disconnect(stream_info);
 		return false;
 	}
 
-	if (GetStreamByName(app_name, stream_name))
+	// stream_id does not available at this point
+	auto stream = application->GetStreamByName(stream_info->stream_name);
+
+	if (stream != nullptr)
 	{
-		if (_provider_info->IsBlockDuplicateStreamName())
-		{
-			logti("The input stream is duplicated. Rejecting... [%s/%s]", app_name.CStr(), stream_name.CStr());
-			return false;
-		}
-		else
-		{
-			uint32_t stream_id = GetStreamByName(app_name, stream_name)->GetId();
-
-			logti("The input stream is duplicated. Disconnecting previous connection... [%s/%s]", app_name.CStr(), stream_name.CStr());
-
-			// Disconnect the previous connection
-			if (
-				(_mpegts_server->Disconnect(app_name, stream_id) == false) ||
-				(application->DeleteStream2(application->GetStreamByName(stream_name)) == false))
-			{
-				logte("Failed to disconnect client from MPEG-TS Server for [%s/%s]", app_name.CStr(), stream_name.CStr());
-			}
-		}
+		logti("The input stream is duplicated. Rejecting... %s", stream_info->ToString().CStr());
+		_mpegts_server->Disconnect(stream_info);
+		return false;
 	}
 
 	// Create a new stream
-	auto stream = application->MakeStream();
+	auto new_stream = application->MakeStream();
 
-	if (stream == nullptr)
+	if (new_stream == nullptr)
 	{
-		logte("Could not create stream for [%s/%s]", app_name.CStr(), stream_name.CStr());
+		logte("Could not create stream for %s", stream_info->ToString().CStr());
+		_mpegts_server->Disconnect(stream_info);
 		return false;
 	}
 
-	stream->SetName(stream_name.CStr());
+	{
+		// Make stream_info writable temporary
 
-	if (media_info->video_streaming)
+		// This is safe operation - MpegTsStreamInfo instance is always created by MpegTsProvider only
+		auto mutable_stream_info = std::const_pointer_cast<MpegTsStreamInfo>(stream_info);
+
+		OV_ASSERT2(mutable_stream_info->stream_id == 0);
+
+		mutable_stream_info->stream_id = new_stream->GetId();
+	}
+
+	new_stream->SetName(stream_info->stream_name.CStr());
+
+	if (media_info->is_video_available)
 	{
 		auto new_track = std::make_shared<MediaTrack>();
 
@@ -140,10 +328,10 @@ bool MpegTsProvider::OnStreamReadyComplete(const ov::String &app_name, const ov:
 		new_track->SetFrameRate(media_info->video_framerate);
 
 		new_track->SetTimeBase(1, 90000);
-		stream->AddTrack(new_track);
+		new_stream->AddTrack(new_track);
 	}
 
-	if (media_info->audio_streaming)
+	if (media_info->is_audio_available)
 	{
 		auto new_track = std::make_shared<MediaTrack>();
 
@@ -163,37 +351,36 @@ bool MpegTsProvider::OnStreamReadyComplete(const ov::String &app_name, const ov:
 			new_track->GetChannel().SetLayout(common::AudioChannel::Layout::LayoutStereo);
 		}
 
-		stream->AddTrack(new_track);
+		new_stream->AddTrack(new_track);
 	}
 
-	application->CreateStream2(stream);
+	auto result = application->CreateStream2(new_stream);
 
-	application_id = application->GetId();
-	stream_id = stream->GetId();
+	OV_ASSERT2(result);
 
-	logtd("The MPEG-TS stream is ready: [%s/%s] (%u/%u)", app_name.CStr(), stream_name.CStr(), application_id, stream_id);
+	logtd("The MPEG-TS stream is ready for %s", stream_info->ToString().CStr());
 
 	return true;
 }
 
-bool MpegTsProvider::OnVideoData(info::application_id_t application_id, uint32_t stream_id,
-								 uint32_t timestamp,
+bool MpegTsProvider::OnVideoData(const std::shared_ptr<const MpegTsStreamInfo> &stream_info,
+								 int64_t pts, int64_t dts,
 								 MpegTsFrameType frame_type,
 								 const std::shared_ptr<const ov::Data> &data)
 {
-	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationById(application_id));
+	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationById(stream_info->app_id));
 
 	if (application == nullptr)
 	{
-		logte("Could not find an application for [%d/%d]", application_id, stream_id);
+		logte("Could not find an application for %s", stream_info->ToString().CStr());
 		OV_ASSERT2(false);
 		return false;
 	}
 
-	auto stream = std::dynamic_pointer_cast<MpegTsStream>(application->GetStreamById(stream_id));
+	auto stream = std::dynamic_pointer_cast<MpegTsStream>(application->GetStreamById(stream_info->stream_id));
 	if (stream == nullptr)
 	{
-		logte("Could not find a stream for [%d/%d]", application_id, stream_id);
+		logte("Could not find a stream for %s", stream_info->ToString().CStr());
 		OV_ASSERT2(false);
 		return false;
 	}
@@ -202,9 +389,9 @@ bool MpegTsProvider::OnVideoData(info::application_id_t application_id, uint32_t
 												0,
 												data,
 												// PTS
-												timestamp,
+												pts,
 												// DTS
-												timestamp,
+												dts,
 												// Duration
 												-1LL,
 												frame_type == MpegTsFrameType::VideoIFrame ? MediaPacketFlag::Key : MediaPacketFlag::NoFlag);
@@ -214,24 +401,26 @@ bool MpegTsProvider::OnVideoData(info::application_id_t application_id, uint32_t
 	return true;
 }
 
-bool MpegTsProvider::OnAudioData(info::application_id_t application_id, uint32_t stream_id,
-								 uint32_t timestamp,
+bool MpegTsProvider::OnAudioData(const std::shared_ptr<const MpegTsStreamInfo> &stream_info,
+								 int64_t pts, int64_t dts,
 								 MpegTsFrameType frame_type,
 								 const std::shared_ptr<const ov::Data> &data)
 {
-	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationById(application_id));
+	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationById(stream_info->app_id));
 
 	if (application == nullptr)
 	{
-		logte("Could not find an application for [%d/%d]", application_id, stream_id);
+		logte("Could not find an application for %s", stream_info->ToString().CStr());
+		OV_ASSERT2(false);
 		return false;
 	}
 
-	auto stream = std::dynamic_pointer_cast<MpegTsStream>(application->GetStreamById(stream_id));
+	auto stream = std::dynamic_pointer_cast<MpegTsStream>(application->GetStreamById(stream_info->stream_id));
 
 	if (stream == nullptr)
 	{
-		logte("Could not find a stream for [%d/%d]", application_id, stream_id);
+		logte("Could not find a stream for %s", stream_info->ToString().CStr());
+		OV_ASSERT2(false);
 		return false;
 	}
 
@@ -239,9 +428,9 @@ bool MpegTsProvider::OnAudioData(info::application_id_t application_id, uint32_t
 												1,
 												data,
 												// PTS
-												timestamp,
+												pts,
 												// DTS
-												timestamp,
+												dts,
 												// Duration
 												-1LL,
 												MediaPacketFlag::Key);
@@ -251,22 +440,22 @@ bool MpegTsProvider::OnAudioData(info::application_id_t application_id, uint32_t
 	return true;
 }
 
-bool MpegTsProvider::OnDeleteStream(info::application_id_t application_id, uint32_t stream_id)
+bool MpegTsProvider::OnDeleteStream(const std::shared_ptr<const MpegTsStreamInfo> &stream_info)
 {
-	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationById(application_id));
+	auto application = std::dynamic_pointer_cast<MpegTsApplication>(GetApplicationById(stream_info->app_id));
 
 	if (application == nullptr)
 	{
-		logte("Could not find an application for [%d/%d]", application_id, stream_id);
-		OV_ASSERT2(false);
+		logte("Could not find an application for %s", stream_info->ToString().CStr());
+		// OV_ASSERT2(false);
 
 		return false;
 	}
 
-	auto stream = std::dynamic_pointer_cast<MpegTsStream>(application->GetStreamById(stream_id));
+	auto stream = std::dynamic_pointer_cast<MpegTsStream>(application->GetStreamById(stream_info->stream_id));
 	if (stream == nullptr)
 	{
-		logte("Could not find a stream for [%d/%d]", application_id, stream_id);
+		logte("Could not find a stream for %s", stream_info->ToString().CStr());
 		OV_ASSERT2(false);
 
 		return false;

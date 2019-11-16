@@ -8,6 +8,7 @@
 //==============================================================================
 #pragma once
 
+#include "mpegts_datastructure.h"
 #include "mpegts_define.h"
 
 #include <base/application/application.h>
@@ -18,8 +19,11 @@
 class MpegTsObserver : public ov::EnableSharedFromThis<MpegTsObserver>
 {
 public:
-	virtual bool OnStreamReadyComplete(const ov::String &app_name, const ov::String &stream_name, std::shared_ptr<MpegTsMediaInfo> &media_info, info::application_id_t &application_id, uint32_t &stream_id) = 0;
-	virtual bool OnVideoData(info::application_id_t application_id, uint32_t stream_id, uint32_t timestamp, MpegTsFrameType frame_type, const std::shared_ptr<const ov::Data> &data) = 0;
-	virtual bool OnAudioData(info::application_id_t application_id, uint32_t stream_id, uint32_t timestamp, MpegTsFrameType frame_type, const std::shared_ptr<const ov::Data> &data) = 0;
-	virtual bool OnDeleteStream(info::application_id_t application_id, uint32_t stream_id) = 0;
+	// This callback is called to fill the info variable when the client sent a packet to the MPEG-TS server
+	virtual std::shared_ptr<const MpegTsStreamInfo> OnQueryStreamInfo(uint16_t port_num, const ov::SocketAddress *address) = 0;
+
+	virtual bool OnStreamReady(const std::shared_ptr<const MpegTsStreamInfo> &stream_info, const std::shared_ptr<MpegTsMediaInfo> &media_info) = 0;
+	virtual bool OnVideoData(const std::shared_ptr<const MpegTsStreamInfo> &stream_info, int64_t pts, int64_t dts, MpegTsFrameType frame_type, const std::shared_ptr<const ov::Data> &data) = 0;
+	virtual bool OnAudioData(const std::shared_ptr<const MpegTsStreamInfo> &stream_info, int64_t pts, int64_t dts, MpegTsFrameType frame_type, const std::shared_ptr<const ov::Data> &data) = 0;
+	virtual bool OnDeleteStream(const std::shared_ptr<const MpegTsStreamInfo> &stream_info) = 0;
 };

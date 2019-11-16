@@ -46,31 +46,25 @@ public:
 	//--------------------------------------------------------------------
 	// Implementation of MpegTsObserver
 	//--------------------------------------------------------------------
-	bool OnStreamReadyComplete(const ov::String &app_name, const ov::String &stream_name,
-							   std::shared_ptr<MpegTsMediaInfo> &media_info,
-							   info::application_id_t &application_id,
-							   uint32_t &stream_id) override;
+	std::shared_ptr<const MpegTsStreamInfo> OnQueryStreamInfo(uint16_t port_num, const ov::SocketAddress *address) override;
 
-	bool OnVideoData(info::application_id_t application_id, uint32_t stream_id,
-					 uint32_t timestamp,
+	bool OnStreamReady(const std::shared_ptr<const MpegTsStreamInfo> &stream_info,
+					   const std::shared_ptr<MpegTsMediaInfo> &media_info) override;
+
+	bool OnVideoData(const std::shared_ptr<const MpegTsStreamInfo> &stream_info,
+					 int64_t pts, int64_t dts,
 					 MpegTsFrameType frame_type,
 					 const std::shared_ptr<const ov::Data> &data) override;
 
-	bool OnAudioData(info::application_id_t application_id, uint32_t stream_id,
-					 uint32_t timestamp,
+	bool OnAudioData(const std::shared_ptr<const MpegTsStreamInfo> &stream_info,
+					 int64_t pts, int64_t dts,
 					 MpegTsFrameType frame_type,
 					 const std::shared_ptr<const ov::Data> &data) override;
 
-	bool OnDeleteStream(info::application_id_t application_id, uint32_t stream_id) override;
+	bool OnDeleteStream(const std::shared_ptr<const MpegTsStreamInfo> &stream_info) override;
 
 private:
-	struct MpegTsStream
-	{
-		ov::SocketAddress address;
-
-		ov::String app_name;
-		ov::String stream_name;
-	};
+	bool ParseAddressList(const ov::String &ip, const cfg::RangedPort &ranged_port, std::map<ov::port_t, ov::SocketAddress> *address_list, ov::port_t *min_port);
 
 	const cfg::MpegTsProvider *_provider_info = nullptr;
 
@@ -78,5 +72,6 @@ private:
 
 	// key: port
 	// value: stream information
-	std::map<int, MpegTsStream> _stream_table;
+	std::mutex _chunk_stream_list_mutex;
+	std::map<uint16_t, std::shared_ptr<MpegTsStreamInfo>> _stream_table;
 };

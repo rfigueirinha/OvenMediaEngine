@@ -17,18 +17,21 @@ MpegTsFrameType MpegTsElementaryStream::GetFrameType()
 		int i = 0;
 		int nal_unit_type = 0;
 
-		while ((i + 4) < _data->GetLength())
+		while ((i + 5) < _data->GetLength())
 		{
 			if (_data->At(i) == 0 && _data->At(i + 1) == 0 && _data->At(i + 2) == 0 && _data->At(i + 3) == 1)
 			{
 				int nal_unit_type = _data->At(i + 4) & 0x1F;
+
 				if (nal_unit_type == 0x07 || nal_unit_type == 0x05)
 				{
 					return MpegTsFrameType::VideoIFrame;
 				}
 			}
+
 			i++;
 		}
+
 		return MpegTsFrameType::VideoPFrame;
 	}
 
@@ -55,63 +58,119 @@ std::shared_ptr<const ov::Data> MpegTsElementaryStream::GetData() const
 	return _data;
 }
 
-uint32_t MpegTsElementaryStream::GetMediaTimeStamp()
+bool MpegTsElementaryStream::Add(const MpegTsPacket *packet, MpegTsParseData *parse_data)
 {
-	return _ts;
-}
-
-void MpegTsElementaryStream::Add(std::shared_ptr<TSPacket> _packet,
-								 const std::shared_ptr<const ov::Data> &chunk_message)
-{
-	// pes start packet
-	if (_packet->pes_packet.stream_id)
+	if (packet != nullptr)
 	{
-		if (_id == 0)
+		auto &pes = packet->pes;
+
+		if (pes.stream_id > 0)
 		{
-			_id = _packet->packet_identifier;
-		}
-
-		OV_ASSERT2(_id == _packet->packet_identifier);
-
-		_ts = _packet->pes_packet.dts ? _packet->pes_packet.dts : _packet->pes_packet.pts;
-
-		if (_packet->pes_packet.length == 0)
-		{
-			if (_packet->pes_packet.stream_id == MPEGTS_STREAM_VIDEO)
+			if (pes.IsVideoStream())
 			{
-				_remained = -1;
+				MpegTsParseData data_for_validate = *parse_data;
+
+				// Check a sequence header (it starts with 0x000001B3)
+				if (
+					(data_for_validate.ReadByte() == 0x00) &&
+					(data_for_validate.ReadByte() == 0x00) &&
+					(data_for_validate.ReadByte() == 0x01) &&
+					(data_for_validate.ReadByte() == 0xB3))
+				{
+					//  76543210  76543210  76543210  76543210
+					// [hhhhhhhh][hhhhvvvv][vvvvvvvv][aaaaffff]
+					// h: horizontal_size
+					_horizontal_size = data_for_validate.ReadBits16(12);
+					// v: vertical_size
+					_vertical_size = data_for_validate.ReadBits16(12);
+					// a: aspect_ratio
+					//     1: square samples
+					//     2: 4:3 display aspect ratio
+					//     3: 16:9 display aspect ratio
+					_aspect_ratio = static_cast<MpegTsAspectRatio>(data_for_validate.Read(4));
+					// f: frame_rate
+					_frame_rate = static_cast<MpegTsFrameRate>(data_for_validate.Read(4));
+
+					//  76543210  76543210  76543210  76543210
+					// [bbbbbbbb][bbbbbbbb][bbmvvvvv][vvvvvcin]
+
+					// b: bit_rate
+					_bit_rate = (data_for_validate.ReadBits16(16) << 16) | data_for_validate.Read(2);
+					// m: marker bit, must be 1
+					if (data_for_validate.Read1() != 0b1)
+					{
+						logte("Invalid marker bit in video elementary stream");
+						return false;
+					}
+
+					// v: vbv_buf_size
+					_vbv_buf_size = data_for_validate.ReadBits16(10);
+					// c: constrainted_parameters_flag
+					_constrainted_parameters_flag = data_for_validate.ReadBoolBit();
+					// i: load_intra_quantizer_matrix
+					_load_intra_quantizer_matrix = data_for_validate.ReadBoolBit();
+					// n:  load_non_intra_quantizer_matrix
+					_load_non_intra_quantizer_matrix = data_for_validate.ReadBoolBit();
+				}
+				else
+				{
+				}
+			}
+
+			if (_id == 0)
+			{
+				_id = packet->packet_identifier;
+			}
+
+			OV_ASSERT2(_id == packet->packet_identifier);
+
+			_pts = pes.pts;
+			_dts = pes.dts;
+
+			if (pes.length == 0)
+			{
+				// A value of 0 indicates that the PES packet length is neither specified nor bounded and is allowed only in
+				// PES packets whose payload consists of bytes from a video elementary stream contained in Transport Stream packets
+
+				if (pes.IsVideoStream() == false)
+				{
+					OV_ASSERT2(false);
+					return false;
+				}
+
+				_remained = -1LL;
 			}
 			else
 			{
-				// This can not occur in audio
-				return;
+				_remained = pes.length;
 			}
 		}
-		else
-		{
-			_remained = _packet->pes_packet.length - (chunk_message->GetLength() - PES_START_SIZE);
-		}
 
-		auto payload_start = PES_HEADER_SIZE + _packet->pes_packet.optional_header_length;
-
-		_data->Append(chunk_message->Subdata(payload_start));
-		// _data->insert(_data->end(), chunk_message->begin() + payload_start, chunk_message->end());
+		_cc = packet->continuity_counter;
 	}
-	else
+
+	if (_data->Append(parse_data->GetCurrent(), parse_data->GetRemained()))
 	{
-		if (_remained != -1)
+		if (_remained >= 0)
 		{
-			_remained -= chunk_message->GetLength();
+			OV_ASSERT(_remained >= parse_data->GetRemained(), "Not enough data: %d bytes, expected: %zu bytes", _remained, parse_data->GetRemained());
+			_remained -= parse_data->GetRemained();
 		}
 
-		_data->Append(chunk_message);
-		// _data->insert(_data->end(), chunk_message->begin(), chunk_message->end());
+		parse_data->SkipAll();
+		return true;
 	}
 
-	_cc = _packet->continuity_counter;
+	return false;
 }
 
 void MpegTsElementaryStream::Clear()
 {
 	_data->Clear();
+
+	_id = 0U;
+	_pts = -1LL;
+	_dts = -1LL;
+	_cc = 0U;
+	_remained = -1LL;
 }

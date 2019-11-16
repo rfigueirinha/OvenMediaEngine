@@ -24,6 +24,8 @@ PhysicalPort::PhysicalPort()
 PhysicalPort::~PhysicalPort()
 {
 	OV_ASSERT2(_observer_list.empty());
+
+	Close();
 }
 
 bool PhysicalPort::Create(ov::SocketType type,
