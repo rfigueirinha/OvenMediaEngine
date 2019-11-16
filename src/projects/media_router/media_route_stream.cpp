@@ -69,11 +69,16 @@ bool MediaRouteStream::Push(std::unique_ptr<MediaPacket> buffer, bool convert_bi
 				return false;
 			}
 
-			// The timestamp used by RTMP is DTS
-			// cts = pts - dts
-			// pts = dts + cts
-			// Convert timebase 1/1000 to 1/90000
-			buffer->SetPts(buffer->GetDts() + (cts * 90));
+			if(buffer->GetPts() == 0LL)
+			{
+				// The timestamp used by RTMP is DTS
+
+				// cts = pts - dts
+				// pts = dts + cts
+
+				// cts: 1/1000, dts: 1/90000
+				buffer->SetPts(buffer->GetDts() + (cts * 90));
+			}
 
 			OV_ASSERT2(buffer->GetPts() >= 0LL);
 		}

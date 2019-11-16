@@ -229,7 +229,7 @@ bool RtmpProvider::OnVideoData(info::application_id_t application_id,
 											  0,
 											  data,
 											  // The timestamp used by RTMP is DTS. PTS will be recalculated later
-											  timestamp * _video_scale,  // PTS
+											  0LL,  // PTS
 											  timestamp * _video_scale,  // DTS
 											  // RTMP doesn't know frame's duration
 											  -1LL,
