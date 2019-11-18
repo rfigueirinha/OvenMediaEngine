@@ -768,24 +768,23 @@ bool MpegTsChunkStream::ParsePesPayload(MpegTsPacket *packet, MpegTsParseData *p
 	}
 	else
 	{
+		// Process payload only
+		if (packet->packet_identifier == _audio_data->GetIdentifier())
+		{
+			return _audio_data->Add(nullptr, parse_data);
+		}
+		else if (packet->packet_identifier == _video_data->GetIdentifier())
+		{
+			return _video_data->Add(nullptr, parse_data);
+		}
+
 		if (_media_info->is_streaming)
 		{
-			// Process payload only
-			if (packet->packet_identifier == _audio_data->GetIdentifier())
-			{
-				return _audio_data->Add(nullptr, parse_data);
-			}
-			else if (packet->packet_identifier == _video_data->GetIdentifier())
-			{
-				return _video_data->Add(nullptr, parse_data);
-			}
-
 			logte("Unknown packet identifier: %u", packet->packet_identifier);
 		}
 		else
 		{
 			// skip
-			logtd("Streaming is not started. Ignoring PES data...");
 			return parse_data->SkipAll();
 		}
 	}
@@ -894,7 +893,7 @@ bool MpegTsChunkStream::ProcessAudioMessage()
 
 		uint32_t frame_length = ((data->At(adts_start + 3) & 0x03) << 11 | (data->At(adts_start + 4) & 0xFF) << 3 | data->At(adts_start + 5) >> 5);
 
-		if (frame_length > length)
+		if ((adts_start + frame_length) > length)
 		{
 			// TODO(dimiden): Rewrite these code
 			return false;

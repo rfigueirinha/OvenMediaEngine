@@ -384,17 +384,8 @@ bool MpegTsProvider::OnVideoData(const std::shared_ptr<const MpegTsStreamInfo> &
 		OV_ASSERT2(false);
 		return false;
 	}
-
-	auto packet = std::make_unique<MediaPacket>(common::MediaType::Video,
-												0,
-												data,
-												// PTS
-												pts,
-												// DTS
-												dts,
-												// Duration
-												-1LL,
-												frame_type == MpegTsFrameType::VideoIFrame ? MediaPacketFlag::Key : MediaPacketFlag::NoFlag);
+	
+	auto packet = std::make_unique<MediaPacket>(common::MediaType::Video, 0, data, pts, dts, -1LL, frame_type == MpegTsFrameType::VideoIFrame ? MediaPacketFlag::Key : MediaPacketFlag::NoFlag);
 
 	application->SendFrame(stream, std::move(packet));
 
@@ -424,16 +415,7 @@ bool MpegTsProvider::OnAudioData(const std::shared_ptr<const MpegTsStreamInfo> &
 		return false;
 	}
 
-	auto packet = std::make_unique<MediaPacket>(common::MediaType::Audio,
-												1,
-												data,
-												// PTS
-												pts,
-												// DTS
-												dts,
-												// Duration
-												-1LL,
-												MediaPacketFlag::Key);
+	auto packet = std::make_unique<MediaPacket>(common::MediaType::Audio, 1, data, pts, dts, -1LL, MediaPacketFlag::Key);
 
 	application->SendFrame(stream, std::move(packet));
 
