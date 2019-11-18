@@ -561,6 +561,32 @@ struct MpegTsPacket
 			// Video stream: 0b1110xxxx
 			return (stream_id & 0b11110000) == 0b11100000;
 		}
+
+		ov::String ToString() const
+		{
+			ov::String description;
+
+			description.AppendFormat("        stream_id: %u\n", stream_id);
+			description.AppendFormat("        length: %u\n", length);
+			description.AppendFormat("        one_zero: %u\n", one_zero);
+			description.AppendFormat("        pes_scrambling_control: %u\n", pes_scrambling_control);
+			description.AppendFormat("        pes_priority: %u\n", pes_priority);
+			description.AppendFormat("        data_alignment_indicator: %u\n", data_alignment_indicator);
+			description.AppendFormat("        copyright: %u\n", copyright);
+			description.AppendFormat("        original_or_copy: %u\n", original_or_copy);
+			description.AppendFormat("        pts_dts_flags: %u\n", pts_dts_flags);
+			description.AppendFormat("        escr_flag: %u\n", escr_flag);
+			description.AppendFormat("        es_rate_flag: %u\n", es_rate_flag);
+			description.AppendFormat("        dsm_trick_mode_flag: %u\n", dsm_trick_mode_flag);
+			description.AppendFormat("        additional_copy_info_flag: %u\n", additional_copy_info_flag);
+			description.AppendFormat("        pes_crc_flag: %u\n", pes_crc_flag);
+			description.AppendFormat("        pes_extension_flag: %u\n", pes_extension_flag);
+			description.AppendFormat("        pes_header_data_length: %u\n", pes_header_data_length);
+			description.AppendFormat("        PTS: %lld\n", pts);
+			description.AppendFormat("        DTS: %lld\n", dts);
+
+			return std::move(description);
+		}
 	} pes;
 
 	// TODO(dimiden): Extract this method to MPEG-TS utility class
@@ -650,6 +676,11 @@ struct MpegTsPacket
 					description.Append(psi.sdt.ToString());
 					break;
 			}
+		}
+		else
+		{
+			description.AppendFormat("    PES:\n");
+			description.Append(pes.ToString());
 		}
 
 		description.Append('>');
