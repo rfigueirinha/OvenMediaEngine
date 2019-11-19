@@ -88,6 +88,10 @@ bool TranscodeDecoder::Configure(std::shared_ptr<TranscodeContext> context)
 		return false;
 	}
 
+	_context->flags |= AV_CODEC_FLAG_LOW_DELAY;
+	_context->flags2 |= AV_CODEC_FLAG2_FAST;
+	_context->active_thread_type = FF_THREAD_SLICE;
+
 	if (::avcodec_open2(_context, _codec, nullptr) < 0)
 	{
 		logte("Could not open codec: %s (%d)", ::avcodec_get_name(GetCodecID()), GetCodecID());

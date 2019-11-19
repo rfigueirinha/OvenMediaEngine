@@ -58,23 +58,24 @@ bool OvenCodecImplAvcodecEncAVC::Configure(std::shared_ptr<TranscodeContext> con
 	_context->pix_fmt = AV_PIX_FMT_YUV420P;
 	_context->width = _output_context->GetVideoWidth();
 	_context->height = _output_context->GetVideoHeight();
-	_context->thread_count = 0;
+	_context->thread_count = 8;
 	AVRational output_timebase = TimebaseToAVRational(_output_context->GetTimeBase());
 	_scale = ::av_q2d(::av_div_q(output_timebase, codec_timebase));
 	_scale_inv = ::av_q2d(::av_div_q(codec_timebase, output_timebase));
 
 	// 인코딩 품질 및 브라우저 호환성
 	// For browser compatibility
-	_context->profile = FF_PROFILE_H264_MAIN;
+	_context->profile = FF_PROFILE_H264_BASELINE;
 
 	// 인코딩 성능
-	::av_opt_set(_context->priv_data, "preset", "fast", 0);
+	::av_opt_set(_context->priv_data, "preset", "ultrafast", 0);
 
 	// 인코딩 딜레이
 	::av_opt_set(_context->priv_data, "tune", "zerolatency", 0);
 
 	// 인코딩 딜레이에서 sliced-thread 옵션 제거. MAC 환겨에서 브라우저 호환성
-	::av_opt_set(_context->priv_data, "x264opts", "bframes=0:sliced-threads=0:b-adapt=1:no-scenecut", 0);
+	// ::av_opt_set(_context->priv_data, "x264opts", "bframes=0:sliced-threads=0:b-adapt=1:no-scenecut", 0);
+	::av_opt_set(_context->priv_data, "x264opts", "b-adapt=0:partitions=none:scenecut=0:no-weightb:weightp=0:sliced-threads:aq-mode=0:subme=0:no-deblock:sync-lookahead=3:bframes=0", 0);
 	// ::av_opt_set(_context->priv_data, "x264opts", "bframes=0:sliced-threads=0:b-adapt=1", 0);
 
 	// CBR 옵션 / bitrate는 kbps 단위 / *문제는 MAC 크롬에서 재생이 안된다. 그래서 maxrate 값만 지정해줌.
@@ -116,6 +117,9 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::RecvBuffer(TranscodeRes
 	{
 		// Packet is ready
 		auto packet = MakePacket();
+
+		// logtw("[ENC] RECV: %lld, %lld", packet->GetPts(), packet->GetDts());
+
 		::av_packet_unref(_packet);
 
 		*result = TranscodeResult::DataReady;
@@ -157,6 +161,8 @@ std::unique_ptr<MediaPacket> OvenCodecImplAvcodecEncAVC::RecvBuffer(TranscodeRes
 		::memcpy(_frame->data[0], frame->GetBuffer(0), frame->GetBufferSize(0));
 		::memcpy(_frame->data[1], frame->GetBuffer(1), frame->GetBufferSize(1));
 		::memcpy(_frame->data[2], frame->GetBuffer(2), frame->GetBufferSize(2));
+
+		// logtw("[ENC] SEND: %lld", frame->GetPts());
 
 		ret = ::avcodec_send_frame(_context, _frame);
 
