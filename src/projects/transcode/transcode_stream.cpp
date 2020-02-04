@@ -261,6 +261,7 @@ int32_t TranscodeStream::CreateOutputStream()
 							// The timebase, sample format will change by the decoder event.
 							new_outupt_track->GetSample().SetFormat(input_track->GetSample().GetFormat());
 							new_outupt_track->SetTimeBase(1, cfg_encode_audio->GetSamplerate());
+							//new_outupt_track->SetTimeBase(input_track->GetTimeBase().GetNum(), input_track->GetTimeBase().GetDen());
 						}
 						
 						stream_info_output->AddTrack(new_outupt_track);
@@ -771,7 +772,7 @@ TranscodeResult TranscodeStream::FilterFrame(int32_t track_id, std::shared_ptr<M
 		case TranscodeResult::DataReady:
 			filtered_frame->SetTrackId(track_id);
 
-			// logtd("[#%d] A frame is filtered (PTS: %lld)", track_id, filtered_frame->GetPts());
+			 logtp("[#%d] A frame is filtered (PTS: %lld)", track_id, filtered_frame->GetPts());
 
 			// if (_queue_filterd_frames.size() > _max_queue_size)
 			// {
@@ -822,7 +823,7 @@ TranscodeResult TranscodeStream::EncodeFrame(int32_t filter_id, std::shared_ptr<
 
 		if (result == TranscodeResult::DataReady)
 		{
-			// logtd("[#%d] A packet is encoded (PTS: %lld)", encoder_id, encoded_packet->GetPts());
+			 logtp("[#%d] A packet is encoded (PTS: %lld)", encoder_id, encoded_packet->GetPts());
 
 			// 인코딩된 패킷을 전송할 출력 트랙이 존재하는지 탐색
 			auto stage_item = _stage_encoder_to_output.find(encoder_id);

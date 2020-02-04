@@ -67,6 +67,7 @@ bool MediaFilterRescaler::Configure(const std::shared_ptr<MediaTrack> &input_med
 	}
 
 	AVRational framerate = ::av_d2q(input_context->GetFrameRate(), AV_TIME_BASE);
+//	logte("framerate=%0.2f, num=%d, den=%d", input_context->GetFrameRate(), framerate.num, framerate.den);
 
 	// Prepare filters
 	//
@@ -152,7 +153,7 @@ bool MediaFilterRescaler::Configure(const std::shared_ptr<MediaTrack> &input_med
 
 int32_t MediaFilterRescaler::SendBuffer(std::shared_ptr<MediaFrame> buffer)
 {
-	logtp("Data before rescaling: %lld (%.0f)\n%s", buffer->GetPts(), buffer->GetPts() * _output_context->GetTimeBase().GetExpr() * 1000.0f, ov::Dump(buffer->GetBuffer(0), buffer->GetBufferSize(0), 32).CStr());
+	//logtp("Data before rescaling: %lld (%.0f)\n%s", buffer->GetPts(), buffer->GetPts() * _output_context->GetTimeBase().GetExpr() * 1000.0f, ov::Dump(buffer->GetBuffer(0), buffer->GetBufferSize(0), 32).CStr());
 
 	_input_buffer.push_back(std::move(buffer));
 
@@ -198,7 +199,7 @@ std::shared_ptr<MediaFrame> MediaFilterRescaler::RecvBuffer(TranscodeResult *res
 		output_frame->SetBuffer(_frame->data[1], output_frame->GetStride(1) * output_frame->GetHeight() / 2, 1);  // Cb Plane
 		output_frame->SetBuffer(_frame->data[2], output_frame->GetStride(2) * output_frame->GetHeight() / 2, 2);  // Cr Plane
 
-		logtp("Rescaled data: %lld (%.0f)\n%s", output_frame->GetPts(), output_frame->GetPts() * _output_context->GetTimeBase().GetExpr() * 1000.0f, ov::Dump(_frame->data[0], _frame->linesize[0], 32).CStr());
+		//logtp("Rescaled data: %lld (%.0f)\n%s", output_frame->GetPts(), output_frame->GetPts() * _output_context->GetTimeBase().GetExpr() * 1000.0f, ov::Dump(_frame->data[0], _frame->linesize[0], 32).CStr());
 
 		::av_frame_unref(_frame);
 
@@ -212,7 +213,7 @@ std::shared_ptr<MediaFrame> MediaFilterRescaler::RecvBuffer(TranscodeResult *res
 		auto frame = std::move(_input_buffer.front());
 		_input_buffer.pop_front();
 
-		logtp("Dequeued data for rescaling: %lld (%.0f)\n%s", frame->GetPts(), frame->GetPts() * _output_context->GetTimeBase().GetExpr() * 1000.0f, ov::Dump(frame->GetBuffer(0), frame->GetBufferSize(0), 32).CStr());
+		//logtp("Dequeued data for rescaling: %lld (%.0f)\n%s", frame->GetPts(), frame->GetPts() * _output_context->GetTimeBase().GetExpr() * 1000.0f, ov::Dump(frame->GetBuffer(0), frame->GetBufferSize(0), 32).CStr());
 
 		_frame->format = frame->GetFormat();
 		_frame->width = frame->GetWidth();
