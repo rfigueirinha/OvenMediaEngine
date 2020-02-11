@@ -2,6 +2,7 @@ LOCAL_PATH := $(call get_local_path)
 include $(DEFAULT_VARIABLES)
 
 LOCAL_STATIC_LIBRARIES := \
+	authentication \
 	webrtc \
 	transcoder \
 	rtc_signalling \

@@ -3,6 +3,7 @@
 bin
 intermediates
 logs
+.vscode
 
 .idea
 cmake-build-debug
