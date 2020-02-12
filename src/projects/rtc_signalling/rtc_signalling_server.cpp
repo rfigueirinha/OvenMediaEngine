@@ -94,13 +94,28 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 
 			auto tokens = response->GetRequest()->GetUri().Split("/");
 
-			// "/<app>/<stream>"
-			if(tokens.size() < 3)
+			// "/<app>/<stream>?token=<>"
+			if(tokens.size() < 3) // 3 without token
 			{
 				logti("Invalid request from %s. Disconnecting...", description.CStr());
 				return false;
 			}
-
+			#pragma region  Rui Figueirinha
+			if(tokens.size() < 4) // 4 with token
+			{
+				logti("No token provided by %s. Disconnecting...", description.CStr());
+				return false;
+			}
+			else
+			{
+				if(tokens[3] != "password123") // If it is the incorrect token return false
+				{
+					logte("The provided token: %s is the wrong token. The correct token is password123", tokens[3].CStr());
+					return false;
+				}
+			}
+			#pragma endregion
+			
 			auto info = std::make_shared<RtcSignallingInfo>(
 				// application_name
 				tokens[1],
@@ -232,7 +247,7 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 					DispatchStop(info);
 				}
 
-				logti("Client is disconnected: %s (%s / %s, ufrag: local: %s, remote: %s)",
+				logti("Client is disconnected: %s (%s / %s, ufrag: local: %s, remote: %s, token: )",
 				      response->ToString().CStr(),
 				      info->application_name.CStr(), info->stream_name.CStr(),
 				      (info->offer_sdp != nullptr) ? info->offer_sdp->GetIceUfrag().CStr() : "(N/A)",
