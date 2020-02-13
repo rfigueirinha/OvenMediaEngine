@@ -10,11 +10,14 @@
 #include "rtc_signalling_server.h"
 #include "rtc_ice_candidate.h"
 #include "rtc_signalling_server_private.h"
+#include "authentication/authentication.h"
 
 #include <utility>
 
 #include <ice/ice.h>
 #include <webrtc/webrtc_publisher.h>
+
+extern std::string _server_passphrase;
 
 RtcSignallingServer::RtcSignallingServer(const info::Application *application_info, std::shared_ptr<MediaRouteApplicationInterface> application)
 	: _application_info(application_info),
@@ -94,13 +97,20 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 
 			auto tokens = response->GetRequest()->GetUri().Split("/");
 
+			//if(tokens[2])
+			std::string auth_token;// = picosha2::hash256_hex_string(tokens[2] + "subscribe" + _server_passphrase.c_str);
+			std::string src_str = "streamsubscribe" + _server_passphrase;
+			picosha2::hash256_hex_string(src_str, auth_token);
+
 			// "/<app>/<stream>?token=<>"
 			if(tokens.size() < 3) // 3 without token
 			{
 				logti("Invalid request from %s. Disconnecting...", description.CStr());
 				return false;
 			}
-			#pragma region  Rui Figueirinha
+
+			
+			
 			if(tokens.size() < 4) // 4 with token
 			{
 				logti("No token provided by %s. Disconnecting...", description.CStr());
@@ -108,13 +118,14 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 			}
 			else
 			{
-				if(tokens[3] != "password123") // If it is the incorrect token return false
+				std::string streamName = tokens[3].CStr();
+				if(streamName !=  auth_token.c_str()) // If it is the incorrect token return false
 				{
-					logte("The provided token: %s is the wrong token. The correct token is password123", tokens[3].CStr());
+					logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), auth_token.c_str());
 					return false;
 				}
 			}
-			#pragma endregion
+			
 			
 			auto info = std::make_shared<RtcSignallingInfo>(
 				// application_name

@@ -21,6 +21,8 @@
 #include <base/ovlibrary/stack_trace.h>
 #include <base/ovlibrary/log_write.h>
 
+std::string _server_passphrase;
+
 void SrtLogHandler(void *opaque, int level, const char *file, int line, const char *area, const char *message);
 
 struct ParseOption
@@ -112,6 +114,7 @@ int main(int argc, char *argv[])
 	}
 
 	std::shared_ptr<cfg::Server> server = cfg::ConfigManager::Instance()->GetServer();
+
 	std::vector<cfg::Host> hosts = server->GetHosts();
 
 	std::shared_ptr<MediaRouter> router;
@@ -129,12 +132,16 @@ int main(int argc, char *argv[])
 		auto host_name = host.GetName();
 
 		logtd("Trying to create modules for host [%s]", host_name.CStr());
-
+		
 		auto &app_info_list = application_infos[host.GetName()];
 
 		for(const auto &application : host.GetApplications())
 		{
 			logti("Trying to create application [%s] (%s)...", application.GetName().CStr(), application.GetTypeName().CStr());
+
+			logte("Server passphrase is %s", server->GetPassphrase().CStr());
+
+			_server_passphrase = server->GetPassphrase().CStr();
 
 			app_info_list.emplace_back(application);
 		}
