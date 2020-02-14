@@ -11,6 +11,7 @@
 #include "./third_parties.h"
 #include "./utilities.h"
 #include "main_private.h"
+#include "../authentication/authentication.h"
 
 #include <sys/utsname.h>
 
@@ -51,6 +52,8 @@ static void PrintBanner();
 static bool Initialize(int argc, char *argv[], ParseOption *parse_option);
 static bool Uninitialize();
 
+//std::string _server_passphrase;
+
 int main(int argc, char *argv[])
 {
 	ParseOption parse_option;
@@ -69,6 +72,7 @@ int main(int argc, char *argv[])
 	const bool is_service = parse_option.start_service;
 
 	std::shared_ptr<cfg::Server> server_config = cfg::ConfigManager::Instance()->GetServer();
+
 	std::vector<cfg::VirtualHost> hosts = server_config->GetVirtualHostList();
 
 	bool initialized = false;
@@ -77,9 +81,13 @@ int main(int argc, char *argv[])
 	std::vector<info::Host> host_info_list;
 	std::map<ov::String, bool> vhost_map;
 
+	auto auth = Auth::GetInstance();
 	auto orchestrator = Orchestrator::GetInstance();
 	auto monitor = mon::Monitoring::GetInstance();
 	bool succeeded = true;
+
+	auth->serverPassphrase = server_config->GetPassphrase().CStr();
+	logte("Server passphrase is %s", auth->serverPassphrase);
 
 	// Create info::Host
 	for (const auto &host : hosts)

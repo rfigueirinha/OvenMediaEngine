@@ -161,14 +161,7 @@ bool RtmpProvider::OnStreamReadyComplete(const ov::String &app_name,
 		new_track->SetTimeBase(1, 90000);
 
 		// A value to change to 1/90000 from 1/1000
-		double video_scale = 90000.0 / 1000.0;
-		
-		auto rtmp_stream = std::dynamic_pointer_cast<RtmpStream>(stream);
-		if(rtmp_stream != nullptr)
-		{
-			rtmp_stream->SetVideoTimestampScale(video_scale);
-		}
-
+		_video_scale = 90000.0 / 1000.0;
 
 		stream->AddTrack(new_track);
 	}
@@ -201,13 +194,7 @@ bool RtmpProvider::OnStreamReadyComplete(const ov::String &app_name,
 		new_track->SetTimeBase(1, media_info->audio_samplerate);
 
 		// A value to change to 1/sample_rate from 1/1000
-		double  audio_scale = (double)(media_info->audio_samplerate) / 1000.0;
-		
-		auto rtmp_stream = std::dynamic_pointer_cast<RtmpStream>(stream);
-		if(rtmp_stream != nullptr)
-		{
-			rtmp_stream->SetAudioTimestampScale(audio_scale);
-		}
+		_audio_scale = (double)(media_info->audio_samplerate) / 1000.0;
 
 		stream->AddTrack(new_track);
 	}
@@ -270,8 +257,8 @@ bool RtmpProvider::OnVideoData(info::application_id_t application_id,
 	//logte("video.pts=%10lld", pts);
 
 	// Change the timebase specification: 1/1000 -> 1/90000
-	dts *= stream->GetVideoTimestampScale();
-	pts *= stream->GetVideoTimestampScale();
+	dts *= _video_scale;
+	pts *= _video_scale;
 
 	auto pbuf = std::make_shared<MediaPacket>(MediaType::Video,
 											  0,
@@ -326,9 +313,9 @@ bool RtmpProvider::OnAudioData(info::application_id_t application_id,
 	// Change the timebase specification: 1/1000 -> 1/Samplerate
 	int64_t dts = timestamp;
 	int64_t pts = timestamp;
-	// logte("audio.pts=%10lld, scale=%f", pts, stream->GetAudioTimestampScale());
-	dts *= stream->GetAudioTimestampScale();
-	pts *= stream->GetAudioTimestampScale();
+	//logte("audio.pts=%10lld", pts);
+	dts *= _audio_scale;
+	pts *= _audio_scale;
 
 	auto pbuf = std::make_shared<MediaPacket>(MediaType::Audio,
 											  1,

@@ -10,11 +10,15 @@
 #include "rtc_signalling_server.h"
 #include "rtc_ice_candidate.h"
 #include "rtc_signalling_server_private.h"
+#include "authentication/authentication.h"
 
 #include <utility>
 
 #include <modules/ice/ice.h>
 #include <publishers/webrtc/webrtc_publisher.h>
+
+//extern std::string _server_passphrase;
+//extern Auth* auth;
 
 RtcSignallingServer::RtcSignallingServer(const cfg::Server &server_config, const info::Host &host_info)
 	: _server_config(server_config),
@@ -63,9 +67,12 @@ bool RtcSignallingServer::Start(const ov::SocketAddress &address)
 bool RtcSignallingServer::InitializeWebSocketServer()
 {
 	auto web_socket = std::make_shared<WebSocketInterceptor>();
+	auto auth = Auth::GetInstance();
+
+	//ov::String _server_passphrase = auth->serverPassphrase;
 
 	web_socket->SetConnectionHandler(
-		[this](const std::shared_ptr<WebSocketClient> &ws_client) -> HttpInterceptorResult {
+		[this, auth](const std::shared_ptr<WebSocketClient> &ws_client) -> HttpInterceptorResult {
 			auto &client = ws_client->GetClient();
 			auto &remote = client->GetRemote();
 
@@ -81,11 +88,37 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 
 			auto tokens = client->GetRequest()->GetRequestTarget().Split("/");
 
+			//if(tokens[2])
+
+			// stream direction: publish or subscribe
+			std::string streamName, streamDirection, sPassphrase;
+			streamName = "stream";
+			streamDirection = "subscribe";
+			sPassphrase = auth->serverPassphrase.CStr();
+			std::string auth_token = picosha2::hash256_hex_string(streamName + streamDirection + sPassphrase);
+
+			//Auth::PushBackStream
+
 			// "/<app>/<pub::Stream>"
 			if (tokens.size() < 3)
 			{
 				logtw("Invalid request from %s. Disconnecting...", description.CStr());
 				return HttpInterceptorResult::Disconnect;
+			}
+
+			if(tokens.size() < 4) // 4 with token
+			{
+				logti("No token provided by %s. Disconnecting...", description.CStr());
+				return HttpInterceptorResult::Disconnect;
+			}
+			else
+			{
+				std::string streamName = tokens[3].CStr();
+				if(streamName !=  auth_token.CStr()) // If it is the incorrect token return false
+				{
+					logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), auth_token.CStr());
+					return HttpInterceptorResult::Disconnect;
+				}
 			}
 
 			// Find the "Host" header
