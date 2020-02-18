@@ -88,16 +88,15 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 
 			auto tokens = client->GetRequest()->GetRequestTarget().Split("/");
 
-			//if(tokens[2])
-
 			// stream direction: publish or subscribe
-			std::string streamName, streamDirection, sPassphrase;
-			streamName = "stream";
-			streamDirection = "subscribe";
-			sPassphrase = auth->serverPassphrase.CStr();
-			std::string auth_token = picosha2::hash256_hex_string(streamName + streamDirection + sPassphrase);
-
-			//Auth::PushBackStream
+			// ov::String streamName, streamDirection, sPassphrase;
+			// streamName = "stream";
+			// streamDirection = "subscribe";
+			// sPassphrase = auth->serverPassphrase;
+			// logti("Passphrase is %s", sPassphrase.CStr());
+			// auth->PushBackStream(tokens[2]);
+			//std::string auth_token = picosha2::hash256_hex_string(streamName + streamDirection + sPassphrase);
+			// ov::String ov_auth_token = auth_token.c_str;
 
 			// "/<app>/<pub::Stream>"
 			if (tokens.size() < 3)
@@ -113,10 +112,13 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 			}
 			else
 			{
-				std::string streamName = tokens[3].CStr();
-				if(streamName !=  auth_token.CStr()) // If it is the incorrect token return false
+				ov::String URLtoken = tokens[3].CStr();
+
+				// split stream_o into stream  _  o
+				ov::String streamToken = auth->GetSHA256Hash(tokens[2].Split("_")[0], Auth::streamCommand::subscribe);
+				if(URLtoken !=  streamToken) // If it is the incorrect token return false
 				{
-					logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), auth_token.CStr());
+					logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), streamToken.CStr());
 					return HttpInterceptorResult::Disconnect;
 				}
 			}

@@ -24,23 +24,9 @@
 
 class Auth
 {
-private:
-    // sha256 hash string
-    // It's calculated using a secret password (configured in Server.xml), stream direction (publish/subscribe) and the stream name
-    //std::string _sha256hash;
-    //std::string _passphrase; 
-    void SetSHA256Hash(ov::String hash);
-    static Auth *instance;
-    Auth(){
-        instance = Auth::GetInstance();
-    };
 public:
-    static Auth *GetInstance()
-    {
-        static Auth *auth;
+    static Auth *GetInstance();
 
-        return auth;
-    }
     // 0 for publish, 1 for subscribe
     enum streamCommand
     {
@@ -51,10 +37,20 @@ public:
     ov::String serverPassphrase;
     ov::String streamName; // Each Auth instance has a streamName for generating an unique hash token
     ov::String CalculateSHA256Hash(ov::String streamName, streamCommand command);
-    static ov::String GetSHA256Hash(ov::String streamName, Auth::streamCommand command);
+    ov::String GetSHA256Hash(ov::String streamName, Auth::streamCommand command);
 
     // map that holds the tuples of the streams
-    static std::map<ov::String, std::pair<ov::String, ov::String>> streams;
+    std::map<ov::String, std::pair<ov::String, ov::String>> streams;
     
-    static void PushBackStream(ov::String streamName);
+    void PushBackStream(ov::String streamName);
+
+private:
+    // sha256 hash string
+    // It's calculated using a secret password (configured in Server.xml), stream direction (publish/subscribe) and the stream name
+    //std::string _sha256hash;
+    //std::string _passphrase; 
+    void SetSHA256Hash(ov::String hash);
+    static Auth *instance;
+    Auth(){};
+    ~Auth(){};
 };

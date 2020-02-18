@@ -134,7 +134,6 @@ bool RtmpProvider::OnStreamReadyComplete(const ov::String &app_name,
 		logte("can not create stream - app(%s) stream(%s)", app_name.CStr(), stream_name.CStr());
 		return false;
 	}
-
 	stream->SetName(stream_name.CStr());
 
 	if (media_info->video_streaming)

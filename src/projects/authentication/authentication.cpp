@@ -10,23 +10,34 @@
 //#include <iostream>
 
 #include "authentication.h"
-
-
 // private
 
+Auth* Auth::instance;
+
 // public
+Auth *Auth::GetInstance()
+{
+    if(instance == nullptr)
+        instance = new Auth;
+    return instance;
+}
+
+// streamName + streamDirection + passphrase (passphrase in Server.xml)
 ov::String Auth::CalculateSHA256Hash(ov::String streamName, streamCommand command)
 {
     ov::String streamDirection;
     if(command == 0){streamDirection = "publish";} else if(command == 1){streamDirection = "subscribe";}
-    ov::String src_str = streamName + streamDirection; // + _server_passphrase;
-    ov::String hash_hex_string;
-
+    ov::String src_str = streamName + streamDirection + serverPassphrase;
+    //logte("Source String is %s", src_str.CStr());
+    std::string hash_hex_std_string;
+    std::string src_std_string = src_str.CStr();
     // Generate sha256 hash from streamName and server passphrase
-    picosha2::hash256_hex_string(src_str.CStr(), hash_hex_string.CStr());
-    //SetSHA256Hash(hash_hex_string);
+    picosha2::hash256_hex_string(src_std_string, hash_hex_std_string);
 
-    return hash_hex_string;
+    //std::cout << hash_hex_std_string << std::endl;
+
+    ov::String hash_hex_ov_string = hash_hex_std_string.c_str();
+    return hash_hex_ov_string;
 }
 
 
@@ -47,7 +58,6 @@ ov::String Auth::GetSHA256Hash(ov::String streamName, Auth::streamCommand comman
 // Enter a stream into the authentication manager for calculating the publish/subscribe hash
 void Auth::PushBackStream(ov::String streamName)
 {
-    //auto auth = Auth::GetInstance();
     // streams --> {stream name, pair<publish hash, subscribe hash>}
     // Creates the {string, pair} for each stream
     streams.emplace(streamName, std::make_pair(instance->CalculateSHA256Hash(streamName, Auth::streamCommand::publish), instance->CalculateSHA256Hash(streamName, Auth::streamCommand::subscribe)));
