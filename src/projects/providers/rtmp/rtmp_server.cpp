@@ -215,6 +215,10 @@ bool RtmpServer::OnChunkStreamReady(ov::ClientSocket *remote,
 									uint32_t &stream_id,
 									ov::String &pub_token)
 {
+	// Separate the stream name with the token
+	pub_token = stream_name.Split("/")[1];
+	stream_name = stream_name.Split("/")[0];
+
 	// Notify the ready stream event to the observers
 	for (auto &observer : _observers)
 	{
@@ -227,11 +231,6 @@ bool RtmpServer::OnChunkStreamReady(ov::ClientSocket *remote,
 		}
 	}
 
-	// Separate the stream name with the token
-	pub_token = stream_name.Split("/")[1];
-	stream_name = stream_name.Split("/")[0];
-
-	// Insert stream name into authentication manager
 	auto auth = Auth::GetInstance();
 
 	// Check if provided token is valid
@@ -243,7 +242,8 @@ bool RtmpServer::OnChunkStreamReady(ov::ClientSocket *remote,
 	}
 	else
 	{
-		logte("Expected pub token %s, provided pub token %s. SUCCESS", expected_pub_token.CStr(), pub_token.CStr());
+		logti("Correct token provided. Expected pub token %s, provided pub token %s. ", expected_pub_token.CStr(), pub_token.CStr());
+		// Insert stream name into authentication manager
 		auth->PushBackStream(stream_name);
 	}
 

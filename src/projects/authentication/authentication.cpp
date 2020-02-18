@@ -59,6 +59,10 @@ ov::String Auth::GetSHA256Hash(ov::String streamName, Auth::streamCommand comman
 void Auth::PushBackStream(ov::String streamName)
 {
     // streams --> {stream name, pair<publish hash, subscribe hash>}
-    // Creates the {string, pair} for each stream
+    // Creates the {string, pair} for each stream    
     streams.emplace(streamName, std::make_pair(instance->CalculateSHA256Hash(streamName, Auth::streamCommand::publish), instance->CalculateSHA256Hash(streamName, Auth::streamCommand::subscribe)));
+    // logti("Stream added to auth manager. stream name: %s pub token: %s sub token: %s", streamName.CStr(), GetSHA256Hash(streamName, Auth::streamCommand::publish).CStr(), GetSHA256Hash(streamName, Auth::streamCommand::subscribe).CStr());
+    std::cout << "Stream added to auth manager. stream name: " << streamName.CStr()
+     << " pub token: " << GetSHA256Hash(streamName, Auth::streamCommand::publish).CStr() 
+     << "sub token: " << GetSHA256Hash(streamName, Auth::streamCommand::subscribe).CStr() << std::endl;
 }

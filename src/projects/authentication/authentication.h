@@ -13,14 +13,12 @@
 #pragma once
 
 #include "picosha2.h"
-#include "../base/ovlibrary/string.h"
+#include "../base/ovlibrary/ovlibrary.h"
 
 #include <iostream>
 #include <utility>
 #include <string>
 #include <map>
-
-//extern ov::String _server_passphrase;
 
 class Auth
 {
@@ -30,7 +28,7 @@ public:
     // 0 for publish, 1 for subscribe
     enum streamCommand
     {
-        publish ,
+        publish,
         subscribe,
     };
 
