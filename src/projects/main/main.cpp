@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	bool succeeded = true;
 
 	auth->serverPassphrase = server_config->GetPassphrase();
-	//logte("Server passphrase is %s", auth->serverPassphrase.CStr());
+	logte("Server passphrase is %s", auth->serverPassphrase.CStr());
 
 	// Create info::Host
 	for (const auto &host : hosts)
@@ -131,6 +131,10 @@ int main(int argc, char *argv[])
 					// Create an HTTP Manager for Segment Publishers
 					std::map<int, std::shared_ptr<HttpServer>> http_server_manager;
 
+					std::cout << "DISABLE HLS FLAG " << server_config->GetDisableHLS() << std::endl;
+					std::cout << "DISABLE DASH FLAG " << server_config->GetDisableDASH() << std::endl;
+					std::cout << "DISABLE LLDASH FLAG " << server_config->GetDisableLLDASH() << std::endl;
+
 					//--------------------------------------------------------------------
 					// Create the modules
 					//--------------------------------------------------------------------
@@ -141,10 +145,8 @@ int main(int argc, char *argv[])
 					INIT_MODULE(rtspc_provider, "RTSPC Provider", pvd::RtspcProvider::Create(*server_config, media_router));
 					INIT_MODULE(rtsp_provider, "RTSP Provider", pvd::RtspProvider::Create(*server_config, media_router));
 					INIT_MODULE(webrtc_publisher, "WebRTC Publisher", WebRtcPublisher::Create(*server_config, host_info, media_router));
-					// if(server_config->GetIgnoreHLS)
-					//INIT_MODULE(hls_publisher, "HLS Publisher", HlsPublisher::Create(http_server_manager, *server_config, host_info, media_router));
-					// if(server_config->GetIgnoreDASH)
-					//INIT_MODULE(dash_publisher, "MPEG-DASH Publisher", DashPublisher::Create(http_server_manager, *server_config, host_info, media_router));
+					INIT_MODULE(hls_publisher, "HLS Publisher", HlsPublisher::Create(http_server_manager, *server_config, host_info, media_router));
+					INIT_MODULE(dash_publisher, "MPEG-DASH Publisher", DashPublisher::Create(http_server_manager, *server_config, host_info, media_router));
 					INIT_MODULE(lldash_publisher, "Low-Latency MPEG-DASH Publisher", CmafPublisher::Create(http_server_manager, *server_config, host_info, media_router));
 					INIT_MODULE(ovt_publisher, "OVT Publisher", OvtPublisher::Create(*server_config, host_info, media_router));
 
@@ -163,9 +165,17 @@ int main(int argc, char *argv[])
 					initialized = initialized && orchestrator->RegisterModule(transcoder);
 					// Register publishers
 					initialized = initialized && orchestrator->RegisterModule(webrtc_publisher);
-					//initialized = initialized && orchestrator->RegisterModule(hls_publisher);
-					//initialized = initialized && orchestrator->RegisterModule(dash_publisher);
-					initialized = initialized && orchestrator->RegisterModule(lldash_publisher);
+
+					if(!server_config->GetDisableHLS()){
+						initialized = initialized && orchestrator->RegisterModule(hls_publisher);
+						}
+					if(!server_config->GetDisableDASH()){
+						initialized = initialized && orchestrator->RegisterModule(dash_publisher);
+					}
+					if(!server_config->GetDisableLLDASH()){
+						initialized = initialized && orchestrator->RegisterModule(lldash_publisher);
+					}
+					
 					initialized = initialized && orchestrator->RegisterModule(ovt_publisher);
 				} while (false);
 

@@ -28,6 +28,12 @@ namespace cfg
 
 		CFG_DECLARE_REF_GETTER_OF(GetPassphrase, _passphrase)
 
+		CFG_DECLARE_GETTER_OF(GetDisableHLS, _disableHLS)
+
+		CFG_DECLARE_GETTER_OF(GetDisableDASH, _disableDASH)
+
+		CFG_DECLARE_GETTER_OF(GetDisableLLDASH, _disableLLDASH)
+
 		CFG_DECLARE_REF_GETTER_OF(GetTypeName, _typeName)
 		CFG_DECLARE_GETTER_OF(GetType, _type)
 
@@ -44,6 +50,12 @@ namespace cfg
 			RegisterValue<Optional>("Name", &_name);
 
 			RegisterValue<Optional>("Passphrase", &_passphrase);
+
+			RegisterValue<Optional>("DisableHLS", &_disableHLS);
+
+			RegisterValue<Optional>("DisableDASH", &_disableDASH);
+			
+			RegisterValue<Optional>("DisableLLDASH", &_disableLLDASH);
 
 			RegisterValue("Type", &_typeName, nullptr, [this]() -> bool {
 				_type = ServerType::Unknown;
@@ -71,6 +83,12 @@ namespace cfg
 		ov::String _name;
 
 		ov::String _passphrase;
+
+		bool _disableHLS = false;
+
+		bool _disableDASH = false;
+
+		bool _disableLLDASH = false;
 
 		ov::String _typeName;
 		ServerType _type;
