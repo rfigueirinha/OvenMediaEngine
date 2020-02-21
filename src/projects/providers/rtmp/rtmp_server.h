@@ -49,8 +49,7 @@ protected:
 							ov::String &app_name, ov::String &stream_name,
 							std::shared_ptr<RtmpMediaInfo> &media_info,
 							info::application_id_t &application_id,
-							uint32_t &stream_id,
-							ov::String &pub_token) override;
+							uint32_t &stream_id) override;
 
 	bool OnChunkStreamVideoData(ov::ClientSocket *remote,
 								info::application_id_t application_id, uint32_t stream_id,

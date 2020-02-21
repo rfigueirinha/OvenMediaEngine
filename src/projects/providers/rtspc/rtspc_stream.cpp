@@ -64,10 +64,10 @@ namespace pvd
 		// Below is sample code for GET_URL.SH.
 		//	
 		// 		#!/bin/bash
-		// 		RTSP_URL=$(wget -qO- http://211.235.108.156:50202/hls/live1)
+		// 		RTSP_URL=$(wget -qO- http://211.235.108.156:50202/rtsp/record1)
 		// 		echo $RTSP_URL
 
-		FILE* file_stream = popen( "/home/soulk/rtsp/get_url.sh", "r" );
+		FILE* file_stream = popen( "/home/getroot/get_url.sh", "r" );
 
 		std::ostringstream output;
 
@@ -153,8 +153,22 @@ namespace pvd
 
 		logti("Requested url[%d] : %s", strlen(_curr_url->Source().CStr()), _curr_url->Source().CStr() );
 
+		_format_context = avformat_alloc_context(); 
+		if(_format_context == nullptr)
+		{
+			_state = State::ERROR;
+			logte("Canot create context");
+			
+			return false;
+		}
+
+		// Interrupt Callback for session termination.
+		_format_context->interrupt_callback.callback = InterruptCallback;
+		_format_context->interrupt_callback.opaque = this;
+
 		AVDictionary *options = NULL;
 		::av_dict_set(&options, "rtsp_transport", "tcp", 0);
+
 
 		int err = 0;
     	if ( (err = ::avformat_open_input(&_format_context, _curr_url->Source().CStr(), NULL, &options))  < 0) 
@@ -213,7 +227,7 @@ namespace pvd
 
 			if (media_type == common::MediaType::Unknown || media_codec == common::MediaCodecId::None)
 			{
-				logte("Unknown media type or codec_id. media_type(%d), media_codec(%d)", media_type, media_codec);
+				logtp("Unknown media type or codec_id. media_type(%d), media_codec(%d)", media_type, media_codec);
 
 				continue;
 			}
@@ -276,6 +290,26 @@ namespace pvd
 		return true;
 	}
 
+	bool RtspcStream::IsStopThread()
+	{
+		return _stop_thread_flag;
+	}
+
+	int RtspcStream::InterruptCallback(void *ctx)
+	{
+		if(ctx != nullptr)
+		{
+			auto obj = (RtspcStream*)ctx;
+
+			if(obj->IsStopThread() == true)				
+			{
+				return true;
+			}
+		}
+
+	    return false;
+	}
+
 	void RtspcStream::WorkerThread()
 	{
 		AVPacket packet;
@@ -285,25 +319,36 @@ namespace pvd
 		bool is_eof = false;
 		bool is_received_first_packet = false;
 
-		while (!_stop_thread_flag)
+
+		while (!IsStopThread())
 		{
 			int32_t ret = ::av_read_frame(_format_context, &packet);
 			if ( ret < 0 )
 			{
 				if ( (ret == AVERROR_EOF || ::avio_feof(_format_context->pb)) && !is_eof)
 				{
-					// End Of Stream
+					// If EOF is not receiving packets anymore, end thread.
 					logtd("End of file");
+					_state = State::STOPPING;
 					is_eof = true;
-				}
-				if (_format_context->pb && _format_context->pb->error)
-				{
-					logte("Connection is broken");
-					_state = State::ERROR;
-					return;
+					break;
 				}
 
-				// logtw("Error by timeout. Receive packets again.");
+				if (_format_context->pb && _format_context->pb->error)
+				{
+					// If the connection is broken, terminate the thread.
+					logte("Connection is broken");
+					_state = State::ERROR;
+					break;
+				}
+
+				if(IsStopThread())
+				{
+					logtd("Interrupted by end flag");
+					break;
+				}
+
+				logtw("Packet read timeout. retry");
 				continue;
 			}
 			else
@@ -312,25 +357,35 @@ namespace pvd
 			}
 
 			// If the first packet is received as NOPTS_VALUE, reset the PTS value to zero.
-			// TODO(soulk) : If the first packet per track is NOPTS_VALUE, the code below should be modify.
 			if (!is_received_first_packet)
 			{
 				if (packet.pts == AV_NOPTS_VALUE)
+				{
 					packet.pts = 0;
+				}
 				if (packet.dts == AV_NOPTS_VALUE)
+				{	
 					packet.dts = 0;
+				}
 
 				is_received_first_packet = true;
 			}
-
+			
 			logtp("track_id(%d), flags(%d), pts(%10lld), dts(%10lld), size(%d)", packet.stream_index, packet.flags, packet.pts, packet.dts, packet.size);
+
 			if(_stream_metrics != nullptr)
 			{
 				_stream_metrics->IncreaseBytesIn(packet.size);
 			}
 
+			auto track = GetTrack(packet.stream_index);
+			if(track == nullptr)
+			{
+				continue;
+			}
+			
 			auto flag = (packet.flags & AV_PKT_FLAG_KEY) ? MediaPacketFlag::Key : MediaPacketFlag::NoFlag;
-			auto media_packet = std::make_shared<MediaPacket>(common::MediaType::Video, 0, packet.data, packet.size, packet.pts, packet.dts, packet.duration, flag);
+			auto media_packet = std::make_shared<MediaPacket>(track->GetMediaType(), track->GetId(), packet.data, packet.size, packet.pts, packet.dts, packet.duration, flag);
 
 			_application->SendFrame(GetSharedPtrAs<info::Stream>(), media_packet);
 
@@ -344,5 +399,7 @@ namespace pvd
     	}
 
 		_state = State::STOPPED;
+
+		logtd("terminated [%s] stream thread", GetName().CStr());
 	}
 }

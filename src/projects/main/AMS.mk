@@ -15,6 +15,7 @@ LOCAL_STATIC_LIBRARIES := \
 	ice \
 	jsoncpp \
 	http_server \
+	signed_url \
 	dtls_srtp \
 	rtp_rtcp \
 	sdp \

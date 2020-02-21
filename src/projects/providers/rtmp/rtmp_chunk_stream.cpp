@@ -1456,8 +1456,7 @@ bool RtmpChunkStream::StreamCreate()
 												_stream_name,
 												_media_info,
 												_app_id,
-												_stream_id,
-												_pub_token)))
+												_stream_id)))
 	{
 		_stream_messages.clear();
 		_media_info->video_streaming = false;

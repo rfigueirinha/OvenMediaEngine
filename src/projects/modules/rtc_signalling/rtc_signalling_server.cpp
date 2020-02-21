@@ -17,9 +17,6 @@
 #include <modules/ice/ice.h>
 #include <publishers/webrtc/webrtc_publisher.h>
 
-//extern std::string _server_passphrase;
-//extern Auth* auth;
-
 RtcSignallingServer::RtcSignallingServer(const cfg::Server &server_config, const info::Host &host_info)
 	: _server_config(server_config),
 	  _host_info(host_info)
@@ -69,8 +66,6 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 	auto web_socket = std::make_shared<WebSocketInterceptor>();
 	auto auth = Auth::GetInstance();
 
-	//ov::String _server_passphrase = auth->serverPassphrase;
-
 	web_socket->SetConnectionHandler(
 		[this, auth](const std::shared_ptr<WebSocketClient> &ws_client) -> HttpInterceptorResult {
 			auto &client = ws_client->GetClient();
@@ -88,16 +83,6 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 
 			auto tokens = client->GetRequest()->GetRequestTarget().Split("/");
 
-			// stream direction: publish or subscribe
-			// ov::String streamName, streamDirection, sPassphrase;
-			// streamName = "stream";
-			// streamDirection = "subscribe";
-			// sPassphrase = auth->serverPassphrase;
-			// logti("Passphrase is %s", sPassphrase.CStr());
-			// auth->PushBackStream(tokens[2]);
-			//std::string auth_token = picosha2::hash256_hex_string(streamName + streamDirection + sPassphrase);
-			// ov::String ov_auth_token = auth_token.c_str;
-
 			// "/<app>/<pub::Stream>"
 			if (tokens.size() < 3)
 			{
@@ -105,21 +90,25 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 				return HttpInterceptorResult::Disconnect;
 			}
 
-			if(tokens.size() < 4) // 4 with token
+			if(auth->HasAuthentication())
 			{
-				logti("No token provided by %s. Disconnecting...", description.CStr());
-				return HttpInterceptorResult::Disconnect;
-			}
-			else
-			{
-				ov::String URLtoken = tokens[3].CStr();
-
-				// split stream_o into stream  _  o
-				ov::String streamToken = auth->GetSHA256Hash(tokens[2].Split("_")[0], Auth::streamCommand::subscribe);
-				if(URLtoken !=  streamToken) // If it is the incorrect token return false
+				if(tokens.size() < 4) // 4 with token
 				{
-					logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), streamToken.CStr());
+					logti("No token provided by %s. Disconnecting...", description.CStr());
 					return HttpInterceptorResult::Disconnect;
+				}
+				else
+				{
+					ov::String URLtoken = tokens[3].CStr();
+
+					// split stream_o into stream  _  o
+					ov::String streamToken = auth->GetSHA256Hash(tokens[2].Split("_")[0], Auth::streamCommand::subscribe);
+					// If it is the incorrect token return false
+					if(URLtoken !=  streamToken)
+					{
+						logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), streamToken.CStr());
+						return HttpInterceptorResult::Disconnect;
+					}
 				}
 			}
 

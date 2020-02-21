@@ -4,7 +4,7 @@
 //
 //  Created by Rui Figueirinha @ github.com/rfigueirinha
 //                             @ rfigueirinha@abyssal.eu
-//  
+//
 //
 //==============================================================================
 // Singleton class that represents the authentication of the server
@@ -13,7 +13,7 @@
 #pragma once
 
 #include "picosha2.h"
-#include "../base/ovlibrary/ovlibrary.h"
+#include "../base/ovlibrary/string.h"
 
 #include <iostream>
 #include <utility>
@@ -39,14 +39,14 @@ public:
 
     // map that holds the tuples of the streams
     std::map<ov::String, std::pair<ov::String, ov::String>> streams;
-    
+
     void PushBackStream(ov::String streamName);
+    bool HasAuthentication();
 
 private:
     // sha256 hash string
-    // It's calculated using a secret password (configured in Server.xml), stream direction (publish/subscribe) and the stream name
-    //std::string _sha256hash;
-    //std::string _passphrase; 
+    // It's calculated using a secret password (configured in Server.xml),
+    // stream direction (publish/subscribe) and the stream name
     void SetSHA256Hash(ov::String hash);
     static Auth *instance;
     Auth(){};

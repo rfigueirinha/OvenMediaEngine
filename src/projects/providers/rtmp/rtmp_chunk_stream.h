@@ -29,8 +29,7 @@ public:
 	virtual bool OnChunkStreamReady(ov::ClientSocket *remote,
 									ov::String &app_name, ov::String &stream_name,
 									std::shared_ptr<RtmpMediaInfo> &media_info,
-									info::application_id_t &application_id, uint32_t &stream_id, 
-									ov::String &pub_token) = 0;
+									info::application_id_t &application_id, uint32_t &stream_id) = 0;
 
 	virtual bool OnChunkStreamVideoData(ov::ClientSocket *remote,
 										info::application_id_t application_id, uint32_t stream_id,
@@ -74,11 +73,6 @@ public:
 	ov::String &GetStreamName()
 	{
 		return _stream_name;
-	}
-
-	ov::String &GetStreamToken()
-	{
-		return _pub_token;
 	}
 
 	info::application_id_t GetAppId()
@@ -179,7 +173,6 @@ protected:
 	info::application_id_t _app_id;
 	uint32_t _stream_id;
 	ov::String _device_string;
-	ov::String _pub_token;
 
 	std::shared_ptr<ov::Data> _remained_data;
 	RtmpHandshakeState _handshake_state;
