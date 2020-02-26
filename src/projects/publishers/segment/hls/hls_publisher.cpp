@@ -12,6 +12,8 @@
 #include "hls_stream_server.h"
 
 #include <config/config_manager.h>
+#include <modules/signed_url/signed_url.h>
+#include <orchestrator/orchestrator.h>
 
 std::shared_ptr<HlsPublisher> HlsPublisher::Create(std::map<int, std::shared_ptr<HttpServer>> &http_server_manager,
 												   const cfg::Server &server_config,
@@ -31,8 +33,8 @@ HlsPublisher::HlsPublisher(PrivateToken token,
 
 bool HlsPublisher::Start(std::map<int, std::shared_ptr<HttpServer>> &http_server_manager)
 {
-	auto server_config = GetServerConfig();
-	auto host_info = GetHostInfo();
+	auto &server_config = GetServerConfig();
+	auto &host_info = GetHostInfo();
 
 	//auto &name = host_info.GetName();
 
@@ -50,8 +52,8 @@ bool HlsPublisher::Start(std::map<int, std::shared_ptr<HttpServer>> &http_server
 	//stream_server->SetCrossDomain(cross_domains);
 
 	// Start the HLS Server
-	if (!stream_server->Start(address, http_server_manager, DEFAULT_SEGMENT_WORKER_THREAD_COUNT,
-							  host_info.GetCertificate(), host_info.GetChainCertificate()))
+	if (stream_server->Start(address, http_server_manager, DEFAULT_SEGMENT_WORKER_THREAD_COUNT,
+							 host_info.GetCertificate(), host_info.GetChainCertificate()) == false)
 	{
 		logte("An error occurred while start %s Publisher", GetPublisherName());
 		return false;
