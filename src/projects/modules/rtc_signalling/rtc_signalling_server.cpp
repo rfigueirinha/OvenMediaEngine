@@ -10,6 +10,7 @@
 #include "rtc_signalling_server.h"
 #include "rtc_ice_candidate.h"
 #include "rtc_signalling_server_private.h"
+#include "authentication/authentication.h"
 
 #include <utility>
 
@@ -63,9 +64,10 @@ bool RtcSignallingServer::Start(const ov::SocketAddress &address)
 bool RtcSignallingServer::InitializeWebSocketServer()
 {
 	auto web_socket = std::make_shared<WebSocketInterceptor>();
+	auto auth = Auth::GetInstance();
 
 	web_socket->SetConnectionHandler(
-		[this](const std::shared_ptr<WebSocketClient> &ws_client) -> HttpInterceptorResult {
+		[this, auth](const std::shared_ptr<WebSocketClient> &ws_client) -> HttpInterceptorResult {
 			auto &client = ws_client->GetClient();
 			auto &remote = client->GetRemote();
 
@@ -86,6 +88,28 @@ bool RtcSignallingServer::InitializeWebSocketServer()
 			{
 				logtw("Invalid request from %s. Disconnecting...", description.CStr());
 				return HttpInterceptorResult::Disconnect;
+			}
+
+			if(auth->HasAuthentication())
+			{
+				if(tokens.size() < 4) // 4 with token
+				{
+					logti("No token provided by %s. Disconnecting...", description.CStr());
+					return HttpInterceptorResult::Disconnect;
+				}
+				else
+				{
+					ov::String URLtoken = tokens[3].CStr();
+
+					// split stream_o into stream  _  o
+					ov::String streamToken = auth->GetSHA256Hash(tokens[2].Split("_")[0], Auth::streamCommand::subscribe);
+					// If it is the incorrect token return false
+					if(URLtoken !=  streamToken)
+					{
+						logte("The provided token: %s is the wrong token. The correct token is %s", tokens[3].CStr(), streamToken.CStr());
+						return HttpInterceptorResult::Disconnect;
+					}
+				}
 			}
 
 			// Find the "Host" header

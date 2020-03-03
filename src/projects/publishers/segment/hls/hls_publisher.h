@@ -28,6 +28,14 @@ protected:
 	bool Start(std::map<int, std::shared_ptr<HttpServer>> &http_server_manager) override;
 
 	//--------------------------------------------------------------------
+	// Implementation of SegmentStreamObserver
+	//--------------------------------------------------------------------
+	bool OnPlayListRequest(const std::shared_ptr<HttpClient> &client,
+						   const ov::String &app_name, const ov::String &stream_name,
+						   const ov::String &file_name,
+						   ov::String &play_list) override;
+
+	//--------------------------------------------------------------------
 	// Implementation of Publisher
 	//--------------------------------------------------------------------
 	std::shared_ptr<pub::Application> OnCreatePublisherApplication(const info::Application &application_info) override;

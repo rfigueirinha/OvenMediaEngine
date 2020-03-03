@@ -271,6 +271,11 @@ bool RtmpProvider::OnVideoData(info::application_id_t application_id,
 		return true;
 	}
 
+	if(new_data->GetLength() <= 0)
+	{
+		return true;
+	}
+
 	int64_t dts = timestamp;
 	int64_t pts = dts + cts;
 
@@ -331,6 +336,11 @@ bool RtmpProvider::OnAudioData(info::application_id_t application_id,
 	// TODO: It is currently fixed to AAC.
 	// Depending on the codec, the bitstream conversion must be processed.
 	if(stream->ConvertToAudioData(new_data) == 0)
+	{
+		return true;
+	}
+
+	if(new_data->GetLength() <= 0)
 	{
 		return true;
 	}

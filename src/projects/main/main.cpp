@@ -11,6 +11,7 @@
 #include "./third_parties.h"
 #include "./utilities.h"
 #include "main_private.h"
+#include "../authentication/authentication.h"
 
 #include <sys/utsname.h>
 
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
 	const bool is_service = parse_option.start_service;
 
 	std::shared_ptr<cfg::Server> server_config = cfg::ConfigManager::Instance()->GetServer();
+
 	std::vector<cfg::VirtualHost> hosts = server_config->GetVirtualHostList();
 
 	bool initialized = false;
@@ -77,9 +79,16 @@ int main(int argc, char *argv[])
 	std::vector<info::Host> host_info_list;
 	std::map<ov::String, bool> vhost_map;
 
+	auto auth = Auth::GetInstance();
 	auto orchestrator = Orchestrator::GetInstance();
 	auto monitor = mon::Monitoring::GetInstance();
 	bool succeeded = true;
+
+	auth->serverPassphrase = server_config->GetPassphrase().CStr();
+	if(auth->HasAuthentication())
+	{
+		logte("Server will use Authentication.");
+	}
 
 	// Create info::Host
 	for (const auto &host : hosts)
@@ -155,9 +164,18 @@ int main(int argc, char *argv[])
 					initialized = initialized && orchestrator->RegisterModule(transcoder);
 					// Register publishers
 					initialized = initialized && orchestrator->RegisterModule(webrtc_publisher);
-					initialized = initialized && orchestrator->RegisterModule(hls_publisher);
-					initialized = initialized && orchestrator->RegisterModule(dash_publisher);
-					initialized = initialized && orchestrator->RegisterModule(lldash_publisher);
+					if(!server_config->GetDisableHLS())
+					{
+						initialized = initialized && orchestrator->RegisterModule(hls_publisher);
+					}
+					if(!server_config->GetDisableDASH())
+					{
+						initialized = initialized && orchestrator->RegisterModule(dash_publisher);
+					}
+					if(!server_config->GetDisableLLDASH())
+					{
+						initialized = initialized && orchestrator->RegisterModule(lldash_publisher);
+					}
 					initialized = initialized && orchestrator->RegisterModule(ovt_publisher);
 				} while (false);
 

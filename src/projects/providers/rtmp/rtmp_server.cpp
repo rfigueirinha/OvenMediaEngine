@@ -11,6 +11,7 @@
 #include <base/ovlibrary/ovlibrary.h>
 #include <monitoring/monitoring.h>
 
+#include "authentication/authentication.h"
 #include "rtmp_provider_private.h"
 
 RtmpServer::~RtmpServer()
@@ -214,6 +215,35 @@ bool RtmpServer::OnChunkStreamReady(ov::ClientSocket *remote,
 									info::application_id_t &application_id,
 									uint32_t &stream_id)
 {
+	// Insert stream name into authentication manager
+	auto auth = Auth::GetInstance();
+	if (auth->HasAuthentication())
+	{
+		// Separate the stream name with the token
+		auto splittedStreamName =stream_name.Split("/");
+		if(splittedStreamName.size() < 2)
+		{
+			logte("Unable to extract token from stream name [%s]", stream_name.CStr());
+			return false;
+		}
+
+		stream_name = splittedStreamName[0];
+		auto publish_token = splittedStreamName[1];
+
+		// Check if provided token is valid
+		ov::String expected_pub_token = auth->CalculateSHA256Hash(stream_name, Auth::streamCommand::publish);
+		if(publish_token != expected_pub_token)
+		{
+			logte("Expected pub token [%s], provided pub token [%s]", expected_pub_token.CStr(), publish_token.CStr());
+			return false;
+		}
+		else
+		{
+			logti("Correct token provided. Expected pub token %s, provided pub token %s. ", expected_pub_token.CStr(), publish_token.CStr());
+			auth->PushBackStream(stream_name);
+		}
+	}
+
 	// Notify the ready stream event to the observers
 	for (auto &observer : _observers)
 	{
