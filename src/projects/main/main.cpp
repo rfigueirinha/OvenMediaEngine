@@ -20,8 +20,8 @@
 #include <config/config_manager.h>
 
 #include <media_router/media_router.h>
+#include <monitoring/monitoring.h>
 #include <orchestrator/orchestrator.h>
-#include <monitoring/monitoring.h>	
 #include <providers/providers.h>
 #include <publishers/publishers.h>
 #include <transcode/transcoder.h>
@@ -29,12 +29,16 @@
 
 #define INIT_MODULE(variable, name, create)                                         \
 	logti("Trying to create a module " name " for host [%s]...", host_name.CStr()); \
+                                                                                    \
 	auto variable = create;                                                         \
+                                                                                    \
 	if (variable == nullptr)                                                        \
 	{                                                                               \
 		initialized = false;                                                        \
 		break;                                                                      \
-	}
+	}                                                                               \
+                                                                                    \
+	initialized = initialized && orchestrator->RegisterModule(variable)
 
 #define INIT_EXTERNAL_MODULE(name, func)                                          \
 	{                                                                             \
@@ -49,15 +53,26 @@
 	}
 
 static void PrintBanner();
-static bool Initialize(int argc, char *argv[], ParseOption *parse_option);
+static ov::Daemon::State Initialize(int argc, char *argv[], ParseOption *parse_option);
 static bool Uninitialize();
 
 int main(int argc, char *argv[])
 {
 	ParseOption parse_option;
 
-	if (Initialize(argc, argv, &parse_option) == false)
+	auto result = Initialize(argc, argv, &parse_option);
+
+	if (result == ov::Daemon::State::PARENT_SUCCESS)
 	{
+		return 0;
+	}
+	else if (result == ov::Daemon::State::CHILD_SUCCESS)
+	{
+		// continue
+	}
+	else
+	{
+		// false
 		return 1;
 	}
 
@@ -70,8 +85,7 @@ int main(int argc, char *argv[])
 	const bool is_service = parse_option.start_service;
 
 	std::shared_ptr<cfg::Server> server_config = cfg::ConfigManager::Instance()->GetServer();
-
-	std::vector<cfg::VirtualHost> hosts = server_config->GetVirtualHostList();
+	auto &hosts = server_config->GetVirtualHostList();
 
 	bool initialized = false;
 	std::vector<std::shared_ptr<WebConsoleServer>> web_console_servers;
@@ -137,46 +151,24 @@ int main(int argc, char *argv[])
 					//--------------------------------------------------------------------
 					// Create the modules
 					//--------------------------------------------------------------------
+					// Initialize MediaRouter (MediaRouter must be registered first)
 					INIT_MODULE(media_router, "MediaRouter", MediaRouter::Create());
-					INIT_MODULE(transcoder, "Transcoder", Transcoder::Create(media_router));
+
+					// Initialize Providers
 					INIT_MODULE(rtmp_provider, "RTMP Provider", RtmpProvider::Create(*server_config, media_router));
 					INIT_MODULE(ovt_provider, "OVT Provider", pvd::OvtProvider::Create(*server_config, media_router));
 					INIT_MODULE(rtspc_provider, "RTSPC Provider", pvd::RtspcProvider::Create(*server_config, media_router));
 					INIT_MODULE(rtsp_provider, "RTSP Provider", pvd::RtspProvider::Create(*server_config, media_router));
+
+					// Initialize Transcoder
+					INIT_MODULE(transcoder, "Transcoder", Transcoder::Create(media_router));
+
+					// Initialize Publishers
 					INIT_MODULE(webrtc_publisher, "WebRTC Publisher", WebRtcPublisher::Create(*server_config, host_info, media_router));
 					INIT_MODULE(hls_publisher, "HLS Publisher", HlsPublisher::Create(http_server_manager, *server_config, host_info, media_router));
 					INIT_MODULE(dash_publisher, "MPEG-DASH Publisher", DashPublisher::Create(http_server_manager, *server_config, host_info, media_router));
 					INIT_MODULE(lldash_publisher, "Low-Latency MPEG-DASH Publisher", CmafPublisher::Create(http_server_manager, *server_config, host_info, media_router));
 					INIT_MODULE(ovt_publisher, "OVT Publisher", OvtPublisher::Create(*server_config, host_info, media_router));
-
-					//--------------------------------------------------------------------
-					// Register modules to Orchestrator
-					//--------------------------------------------------------------------
-					// Currently, MediaRouter must be registered first
-					// Register media router
-					initialized = initialized && orchestrator->RegisterModule(media_router);
-					// Register providers
-					initialized = initialized && orchestrator->RegisterModule(rtmp_provider);
-					initialized = initialized && orchestrator->RegisterModule(ovt_provider);
-					initialized = initialized && orchestrator->RegisterModule(rtspc_provider);
-					initialized = initialized && orchestrator->RegisterModule(rtsp_provider);
-					// Register transcoder
-					initialized = initialized && orchestrator->RegisterModule(transcoder);
-					// Register publishers
-					initialized = initialized && orchestrator->RegisterModule(webrtc_publisher);
-					if(!server_config->GetDisableHLS())
-					{
-						initialized = initialized && orchestrator->RegisterModule(hls_publisher);
-					}
-					if(!server_config->GetDisableDASH())
-					{
-						initialized = initialized && orchestrator->RegisterModule(dash_publisher);
-					}
-					if(!server_config->GetDisableLLDASH())
-					{
-						initialized = initialized && orchestrator->RegisterModule(lldash_publisher);
-					}
-					initialized = initialized && orchestrator->RegisterModule(ovt_publisher);
 				} while (false);
 
 				if (initialized)
@@ -240,24 +232,24 @@ static void PrintBanner()
 	logti("    Configuration: %s", GetOpenSslConfiguration());
 }
 
-static bool Initialize(int argc, char *argv[], ParseOption *parse_option)
+static ov::Daemon::State Initialize(int argc, char *argv[], ParseOption *parse_option)
 {
 	if (TryParseOption(argc, argv, parse_option) == false)
 	{
-		return false;
+		return ov::Daemon::State::PARENT_FAIL;
 	}
 
 	if (parse_option->help)
 	{
 		::printf("Usage: %s [OPTION]...\n", argv[0]);
 		::printf("    -c <path>             Specify a path of config files\n");
-		return false;
+		return ov::Daemon::State::PARENT_FAIL;
 	}
 
 	if (parse_option->version)
 	{
 		::printf("OvenMediaEngine v%s\n", OME_VERSION);
-		return false;
+		return ov::Daemon::State::PARENT_FAIL;
 	}
 
 	// Daemonize OME with start_service argument
@@ -267,7 +259,7 @@ static bool Initialize(int argc, char *argv[], ParseOption *parse_option)
 
 		if (state == ov::Daemon::State::PARENT_SUCCESS)
 		{
-			return false;
+			return state;
 		}
 		else if (state == ov::Daemon::State::CHILD_SUCCESS)
 		{
@@ -276,14 +268,14 @@ static bool Initialize(int argc, char *argv[], ParseOption *parse_option)
 		else
 		{
 			logte("An error occurred while creating daemon");
-			return false;
+			return state;
 		}
 	}
 
 	if (InitializeSignals() == false)
 	{
 		logte("Could not initialize signals");
-		return false;
+		return ov::Daemon::State::CHILD_FAIL;
 	}
 
 	ov::LogWrite::Initialize(parse_option->start_service);
@@ -291,10 +283,10 @@ static bool Initialize(int argc, char *argv[], ParseOption *parse_option)
 	if (cfg::ConfigManager::Instance()->LoadConfigs(parse_option->config_path) == false)
 	{
 		logte("An error occurred while load config");
-		return false;
+		return ov::Daemon::State::CHILD_FAIL;
 	}
 
-	return true;
+	return ov::Daemon::State::CHILD_SUCCESS;
 }
 
 static bool Uninitialize()
